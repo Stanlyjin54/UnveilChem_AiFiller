@@ -220,9 +220,9 @@ start_frontend.bat   # 启动前端
 
 ## 📞 联系我们
 
-- 项目主页：[GitHub Repository](https://github.com/yourusername/UnveilChem)
-- 问题反馈：[Issues](https://github.com/yourusername/UnveilChem/issues)
-- 邮箱：contact@unveilchem.com
+- 项目主页：[GitHub Repository](https://github.com/Stanljinjin54/UnveilChem_AiFiller)
+- 问题反馈：[Issues](https://github.com/Stanljinjin54/UnveilChem_AiFiller/issues)
+- 邮箱：3193566097@qq.com
 
 ---
 
