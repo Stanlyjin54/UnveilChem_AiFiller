@@ -1,7 +1,7 @@
 # Parsers模块架构说明
 
 ## 模块定位
-`d:\UnveilChem_AI_DocAnalyzer\parsers` 是新增的**模块化文档处理增强组件**，专为化工文档智能分析而设计。
+`backend/app/services/parsers` 是新增的**模块化文档处理增强组件**，专为化工文档智能分析而设计。
 
 ## 核心组件
 

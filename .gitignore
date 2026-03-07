@@ -90,3 +90,6 @@ docs/_build/
 
 # OS files
 Thumbs.db
+
+# Old parsers directory (moved to backend/app/services/)
+parsers/

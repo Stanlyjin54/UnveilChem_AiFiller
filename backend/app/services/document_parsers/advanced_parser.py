@@ -14,10 +14,7 @@ from . import BaseDocumentParser
 
 # 导入高级解析器
 try:
-    import sys
-    import os
-    sys.path.append(os.path.abspath('d:\\UnveilChem_AiFiller'))
-    from parsers.unified_parser import UnifiedDocumentParser, ParseRequest, DocumentType
+    from ..parsers.unified_parser import UnifiedDocumentParser, ParseRequest, DocumentType
     ADVANCED_PARSER_AVAILABLE = True
 except ImportError as e:
     UnifiedDocumentParser = None
