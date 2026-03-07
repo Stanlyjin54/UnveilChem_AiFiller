@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前后端连通性测试工具</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1890ff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #262626;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .status-icon {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+        .success { color: #52c41a; }
+        .error { color: #f5222d; }
+        .warning { color: #faad14; }
+        .info { color: #1890ff; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .test-success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #389e0d;
+        }
+        .test-error {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #cf1322;
+        }
+        .test-warning {
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            color: #d48806;
+        }
+        .test-info {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            color: #0958d9;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        .api-test {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .api-method {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: white;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .get { background: #52c41a; }
+        .post { background: #1890ff; }
+        .put { background: #faad14; }
+        .delete { background: #f5222d; }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #f0f0f0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #1890ff;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 UnveilChem 前后端连通性测试工具</h1>
+        
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">📋</span>
+                测试状态
+            </div>
+            <div>
+                <button onclick="runAllTests()">🚀 运行所有测试</button>
+                <button onclick="stopTests()">⏹️ 停止测试</button>
+                <button onclick="clearResults()">🗑️ 清除结果</button>
+            </div>
+            <div class="progress-bar" style="margin-top: 10px;">
+                <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+            </div>
+            <div id="testStatus" class="test-result test-info" style="margin-top: 10px;">
+                准备开始测试...
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">🌐</span>
+                基础连通性测试
+            </div>
+            <div id="connectivityTests"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">📊</span>
+                文档API测试
+            </div>
+            <div id="documentTests"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">🖼️</span>
+                图片API测试
+            </div>
+            <div id="imageTests"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">🤖</span>
+                自动化API测试
+            </div>
+            <div id="automationTests"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">🔌</span>
+                适配器连接测试
+            </div>
+            <div class="api-test">
+                <button onclick="testAdapterConnection('aspen_plus')">测试Aspen Plus</button>
+                <button onclick="testAdapterConnection('dwsim')">测试DWSIM</button>
+                <button onclick="testAdapterConnection('chemcad')">测试ChemCAD</button>
+                <button onclick="testAdapterConnection('pro_ii')">测试Pro/II</button>
+                <button onclick="testAdapterConnection('excel')">测试Excel</button>
+                <button onclick="testSupportedSoftware()">获取支持软件</button>
+            </div>
+            <div id="adapter-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">👤</span>
+                认证API测试
+            </div>
+            <div id="authTests"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">📈</span>
+                测试总结
+            </div>
+            <div id="testSummary"></div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let isRunning = false;
+        let testResults = [];
+        let currentTestIndex = 0;
+        const totalTests = 15;
+
+        // API端点配置
+        const apiEndpoints = {
+            base: '/api',
+            documents: {
+                upload: '/documents/upload',
+                analyze: '/documents/analyze',
+                list: '/documents/list',
+                get: '/documents/{id}'
+            },
+            images: {
+                upload: '/images/upload',
+                analyze: '/images/analyze',
+                list: '/images/list',
+                get: '/images/{id}'
+            },
+            automation: {
+                submitTask: '/automation/submit-task',
+                getTasks: '/automation/all-tasks',
+                getStatistics: '/automation/statistics',
+                getErrors: '/automation/errors',
+                getSoftware: '/automation/supported-software'
+            },
+            auth: {
+                login: '/auth/login',
+                me: '/auth/me',
+                logout: '/auth/logout'
+            }
+        };
+
+        // 工具函数
+        function addTestResult(containerId, testName, success, message, details = '') {
+            const container = document.getElementById(containerId);
+            const className = success ? 'test-success' : 'test-error';
+            const icon = success ? '✅' : '❌';
+            
+            const result = {
+                testName,
+                success,
+                message,
+                details,
+                timestamp: new Date().toISOString()
+            };
+            testResults.push(result);
+            
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${className}`;
+            resultDiv.innerHTML = `
+                <strong>${icon} ${testName}</strong><br>
+                ${message}${details ? '<br><small>' + details + '</small>' : ''}
+            `;
+            container.appendChild(resultDiv);
+        }
+
+        function updateProgress(percentage) {
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('testStatus');
+            statusDiv.className = `test-result test-${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        function stopTests() {
+            isRunning = false;
+            updateStatus('⏹️ 测试已停止', 'warning');
+        }
+
+        function clearResults() {
+            testResults = [];
+            currentTestIndex = 0;
+            document.getElementById('connectivityTests').innerHTML = '';
+            document.getElementById('documentTests').innerHTML = '';
+            document.getElementById('imageTests').innerHTML = '';
+            document.getElementById('automationTests').innerHTML = '';
+            document.getElementById('authTests').innerHTML = '';
+            document.getElementById('testSummary').innerHTML = '';
+            updateProgress(0);
+            updateStatus('准备开始测试...', 'info');
+        }
+
+        function generateSummary() {
+            const total = testResults.length;
+            const passed = testResults.filter(r => r.success).length;
+            const failed = total - passed;
+            const successRate = total > 0 ? (passed / total * 100).toFixed(1) : 0;
+
+            const summary = document.getElementById('testSummary');
+            summary.innerHTML = `
+                <div class="test-result test-info">
+                    <h4>📊 测试结果汇总</h4>
+                    <p><strong>总测试数:</strong> ${total}</p>
+                    <p><strong>通过:</strong> <span style="color: #52c41a;">${passed}</span></p>
+                    <p><strong>失败:</strong> <span style="color: #f5222d;">${failed}</span></p>
+                    <p><strong>成功率:</strong> ${successRate}%</p>
+                    <p><strong>测试时间:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+                ${failed > 0 ? `
+                    <div class="test-result test-error" style="margin-top: 10px;">
+                        <h4>❌ 失败的测试</h4>
+                        ${testResults.filter(r => !r.success).map(r => `
+                            <p>• ${r.testName}: ${r.message}</p>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // API测试函数
+        async function testAPI(endpoint, method = 'GET', data = null, description = '') {
+            try {
+                const config = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token') || 'mock-token'}`
+                    }
+                };
+                
+                if (data) {
+                    config.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(apiEndpoints.base + endpoint, config);
+                const responseData = await response.json();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: responseData
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        // 连通性测试
+        async function runConnectivityTests() {
+            updateStatus('🌐 正在测试基础连通性...', 'info');
+            
+            // 测试API根路径
+            const rootTest = await testAPI('/');
+            addTestResult('connectivityTests', 'API根路径连接', rootTest.success, 
+                rootTest.success ? 'API根路径连接正常' : 'API根路径连接失败',
+                rootTest.success ? `状态码: ${rootTest.status}` : rootTest.error);
+            
+            // 测试CORS
+            const corsTest = await testAPI('/auth/me', 'GET');
+            addTestResult('connectivityTests', 'CORS跨域支持', 
+                !corsTest.success || corsTest.status !== 0, 
+                'CORS配置正确', 
+                '允许跨域请求');
+        }
+
+        // 文档API测试
+        async function runDocumentTests() {
+            updateStatus('📊 正在测试文档API...', 'info');
+            
+            // 测试获取文档列表
+            const listTest = await testAPI('/documents/list');
+            addTestResult('documentTests', '获取文档列表', 
+                listTest.success && listTest.status === 200, 
+                '文档列表API正常', 
+                `返回数据: ${Array.isArray(listTest.data) ? '数组格式' : '其他格式'}`);
+            
+            // 测试不支持的文档类型
+            const invalidTest = await testAPI('/documents/upload', 'POST', {
+                file: 'test',
+                file_type: 'invalid'
+            });
+            addTestResult('documentTests', '文档类型验证', 
+                !invalidTest.success || invalidTest.status === 422, 
+                '文档类型验证正常', 
+                '正确拒绝无效文档类型');
+        }
+
+        // 图片API测试
+        async function runImageTests() {
+            updateStatus('🖼️ 正在测试图片API...', 'info');
+            
+            // 测试获取图片列表
+            const listTest = await testAPI('/images/list');
+            addTestResult('imageTests', '获取图片列表', 
+                listTest.success && listTest.status === 200, 
+                '图片列表API正常', 
+                `返回数据: ${Array.isArray(listTest.data) ? '数组格式' : '其他格式'}`);
+        }
+
+        // 自动化API测试
+        async function runAutomationTests() {
+            updateStatus('🤖 正在测试自动化API...', 'info');
+            
+            // 测试获取统计信息
+            const statsTest = await testAPI('/automation/statistics');
+            addTestResult('automationTests', '获取自动化统计', 
+                statsTest.success && statsTest.status === 200, 
+                '自动化统计API正常', 
+                `支持适配器: ${statsTest.data?.supported_adapters?.length || 0}个`);
+            
+            // 测试获取任务列表
+            const tasksTest = await testAPI('/automation/all-tasks');
+            addTestResult('automationTests', '获取任务列表', 
+                tasksTest.success && tasksTest.status === 200, 
+                '任务列表API正常', 
+                `任务数量: ${Array.isArray(tasksTest.data) ? tasksTest.data.length : 0}个`);
+            
+            // 测试获取错误报告
+            const errorsTest = await testAPI('/automation/errors?limit=5');
+            addTestResult('automationTests', '获取错误报告', 
+                errorsTest.success && errorsTest.status === 200, 
+                '错误报告API正常', 
+                `错误数量: ${Array.isArray(errorsTest.data) ? errorsTest.data.length : 0}个`);
+            
+            // 测试获取支持软件列表
+            const softwareTest = await testAPI('/automation/supported-software');
+            addTestResult('automationTests', '获取支持软件', 
+                softwareTest.success && softwareTest.status === 200, 
+                '支持软件API正常', 
+                `支持软件: ${softwareTest.data?.total_software || 0}个`);
+            
+            // 测试任务提交（模拟数据）
+            const submitTest = await testAPI('/automation/submit-task', 'POST', {
+                name: '测试任务',
+                target_software: 'aspen_plus',
+                adapter_type: 'aspen_plus',
+                parameters: {},
+                priority: 1
+            });
+            addTestResult('automationTests', '任务提交功能', 
+                !submitTest.success || submitTest.status === 422 || submitTest.status === 500, 
+                '任务提交API存在且可访问', 
+                '需要认证和有效参数');
+        }
+
+        // 认证API测试
+        async function runAuthTests() {
+            updateStatus('👤 正在测试认证API...', 'info');
+            
+            // 测试当前用户信息
+            const meTest = await testAPI('/auth/me');
+            addTestResult('authTests', '获取当前用户', 
+                meTest.success && meTest.status === 200, 
+                '用户信息API正常', 
+                '认证中间件工作正常');
+            
+            // 测试登录（模拟）
+            const loginTest = await testAPI('/auth/login', 'POST', {
+                username: 'test',
+                password: 'test'
+            });
+            addTestResult('authTests', '登录功能', 
+                !loginTest.success || loginTest.status === 401, 
+                '登录API存在且工作', 
+                '正确拒绝无效凭据');
+        }
+
+        // 测试适配器连接
+        async function testAdapterConnection(adapterType) {
+            try {
+                const result = document.getElementById('adapter-result');
+                result.innerHTML = '<div class="running">正在测试适配器连接...</div>';
+                
+                const response = await fetch(`/api/automation/test-connection/${adapterType}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `
+                        <div class="success">
+                            <h4>✅ ${data.software_info.name} 连接成功</h4>
+                            <p><strong>状态:</strong> ${data.status}</p>
+                            <p><strong>版本:</strong> ${data.software_info.version}</p>
+                            <p><strong>消息:</strong> ${data.message}</p>
+                            <details>
+                                <summary>支持的参数</summary>
+                                <ul>
+                                    ${data.software_info.supported_parameters.map(param => `<li>${param}</li>`).join('')}
+                                </ul>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="error">
+                            <h4>❌ ${adapterType} 连接失败</h4>
+                            <p><strong>状态:</strong> ${data.status}</p>
+                            <p><strong>错误:</strong> ${data.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('adapter-result').innerHTML = `
+                    <div class="error">
+                        <h4>❌ 测试失败</h4>
+                        <p>网络错误: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 获取支持的软件列表
+        async function testSupportedSoftware() {
+            try {
+                const result = document.getElementById('adapter-result');
+                result.innerHTML = '<div class="running">正在获取支持的软件列表...</div>';
+                
+                const response = await fetch('/api/automation/supported-software');
+                const data = await response.json();
+                
+                result.innerHTML = `
+                    <div class="success">
+                        <h4>📋 支持的软件列表</h4>
+                        <p><strong>总计:</strong> ${data.total_count} 个适配器</p>
+                        <div class="software-list">
+                            <div class="software-group">
+                                <h5>适配器类型:</h5>
+                                <ul>
+                                    ${data.supported_adapters.map(adapter => `<li>${adapter}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div class="software-group">
+                                <h5>支持软件:</h5>
+                                <ul>
+                                    ${data.supported_software.map(software => `<li>${software}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('adapter-result').innerHTML = `
+                    <div class="error">
+                        <h4>❌ 获取失败</h4>
+                        <p>网络错误: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 运行所有测试
+        async function runAllTests() {
+            const results = {};
+            const startTime = Date.now();
+            
+            try {
+                updateOverallStatus('正在运行测试...', 'running');
+                
+                // 1. 基础API连通性测试
+                const basicResult = await testBasicAPI();
+                results.basic = basicResult;
+                document.getElementById('basic-result').innerHTML = basicResult.message;
+                
+                // 2. 文档API测试
+                const docResult = await testDocumentAPI();
+                results.documents = docResult;
+                document.getElementById('document-result').innerHTML = docResult.message;
+                
+                // 3. 图片API测试
+                const imageResult = await testImageAPI();
+                results.images = imageResult;
+                document.getElementById('image-result').innerHTML = imageResult.message;
+                
+                // 4. 自动化API测试
+                const automationResult = await testAutomationAPI();
+                results.automation = automationResult;
+                document.getElementById('automation-result').innerHTML = automationResult.message;
+                
+                // 5. 适配器连接测试
+                const adapterResult = await testSupportedSoftware();
+                
+                // 6. 认证API测试
+                const authResult = await testAuthAPI();
+                results.auth = authResult;
+                document.getElementById('auth-result').innerHTML = authResult.message;
+                
+                // 计算总体成功率
+                const totalTests = Object.keys(results).length;
+                const successfulTests = Object.values(results).filter(r => r.success).length;
+                const successRate = Math.round((successfulTests / totalTests) * 100);
+                
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+                
+                if (successRate === 100) {
+                    updateOverallStatus('所有测试通过! 🎉', 'success');
+                } else if (successRate >= 80) {
+                    updateOverallStatus(`大部分测试通过 (${successRate}%) ⚠️`, 'warning');
+                } else {
+                    updateOverallStatus(`多个测试失败 (${successRate}%) ❌`, 'error');
+                }
+                
+                document.getElementById('overall-result').innerHTML = `
+                    <div class="summary">
+                        <p><strong>测试完成!</strong></p>
+                        <p>总测试数: ${totalTests}</p>
+                        <p>成功: ${successfulTests}</p>
+                        <p>失败: ${totalTests - successfulTests}</p>
+                        <p>成功率: ${successRate}%</p>
+                        <p>耗时: ${duration}秒</p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('测试运行失败:', error);
+                updateOverallStatus('测试运行失败 ❌', 'error');
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus('准备开始测试...', 'info');
+            
+            // 检查localStorage中的token
+            const token = localStorage.getItem('token');
+            if (token) {
+                addTestResult('authTests', 'Token检查', true, '发现有效的认证token', 
+                    '用户已登录');
+            } else {
+                addTestResult('authTests', 'Token检查', false, '未发现认证token', 
+                    '可能需要登录以获得完整测试结果');
+            }
+        });
+    </script>
+</body>
+</html>

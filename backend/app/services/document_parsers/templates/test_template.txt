@@ -1,0 +1,15 @@
+# 化学文档分析报告
+
+## 基本信息
+- 生成时间：{{ generated_at }}
+- 文件类型：{{ file_type }}
+
+## 化学实体识别
+{% for entity in chemical_entities %}
+- {{ entity.text }} ({{ entity.type }}) - 置信度：{{ entity.confidence | round(2) }}
+{% endfor %}
+
+## 工艺参数提取
+{% for param in process_parameters %}
+- {{ param.name }}: {{ param.value }} {{ param.unit }} - 置信度：{{ param.confidence | round(2) }}
+{% endfor %}

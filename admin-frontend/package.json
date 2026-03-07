@@ -1,0 +1,28 @@
+{
+  "name": "admin-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "UnveilChem AI Chemical Software Automation Platform - Admin Frontend",
+  "license": "MIT",
+  "author": "UnveilChem Team",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^19.2.2 (MIT License)",
+    "typescript": "~5.9.3 (Apache-2.0 License)",
+    "vite": "^7.1.7 (MIT License)"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.1.0 (MIT License)",
+    "@types/moment": "^2.11.29 (MIT License)",
+    "@types/react-router-dom": "^5.3.3 (MIT License)",
+    "antd": "^5.27.4 (MIT License)",
+    "axios": "^1.12.2 (MIT License)",
+    "moment": "^2.30.1 (MIT License)",
+    "react-router-dom": "^7.9.4 (MIT License)"
+  }
+}

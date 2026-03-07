@@ -1,0 +1,36 @@
+[Unit]
+Description=UnveilChem Backend Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/opt/unveilchem/backend
+Environment=PATH=/opt/unveilchem/venv/bin
+Environment=DATABASE_URL=postgresql://unveilchem_user:password@rds-host:5432/unveilchem_db
+Environment=OSS_ACCESS_KEY=your-access-key
+Environment=OSS_SECRET_KEY=your-secret-key
+Environment=OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+Environment=OSS_BUCKET=unveilchem
+Environment=ALIYUN_OCR_ACCESS_KEY=your-ocr-key
+Environment=ALIYUN_OCR_SECRET_KEY=your-ocr-secret
+Environment=SECRET_KEY=your-jwt-secret-key
+ExecStart=/opt/unveilchem/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=unveilchem
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/unveilchem/backend/uploads
+
+[Install]
+WantedBy=multi-user.target
