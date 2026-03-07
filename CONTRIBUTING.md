@@ -8,7 +8,7 @@
 
 如果您发现了 bug 或有功能建议，请：
 
-1. 检查 [Issues](https://github.com/Stanljinjin54/UnveilChem_AiFiller/issues) 确认问题未被报告
+1. 检查 [Issues](https://github.com/Stanlyjin54/UnveilChem_AiFiller/issues) 确认问题未被报告
 2. 创建新的 Issue，使用合适的模板
 3. 提供详细的问题描述和复现步骤
 
@@ -21,7 +21,7 @@
 #### 2. 克隆仓库
 
 ```bash
-git clone https://github.com/Stanljinjin54/UnveilChem_AiFiller.git
+git clone https://github.com/Stanlyjin54/UnveilChem_AiFiller.git
 cd UnveilChem
 ```
 
@@ -229,7 +229,7 @@ npm run format
 
 如有疑问，请通过以下方式联系：
 
-- GitHub Issues: [提交问题](https://github.com/Stanljinjin54/UnveilChem_AiFiller/issues)
+- GitHub Issues: [提交问题](https://github.com/Stanlyjin54/UnveilChem_AiFiller/issues)
 - Email: 549057226@qq.com
 
 ## 🙏 感谢
