@@ -1,36 +1,44 @@
-import React, { useState, useEffect } from 'react'
-import { Card, Input, Button, Spin, Tag, Divider, Alert, Typography, Space, Progress, Tabs, List, Badge, Statistic, Row, Col, Empty, Timeline, Modal } from 'antd'
-import { RobotOutlined, SendOutlined, SettingOutlined, FileTextOutlined, TranslationOutlined, FileSearchOutlined, CheckCircleOutlined, CloseCircleOutlined, ThunderboltOutlined, DatabaseOutlined, BookOutlined, HistoryOutlined } from '@ant-design/icons'
-import { agentAPI, ProcessRequest, AgentResponse, ExecutionPlan } from '../services/agentApi'
+import React, { useState, useEffect, useRef } from 'react'
+import { Card, Input, Button, Spin, Tag, Divider, Alert, Typography, Space, Progress, Tabs, List, Badge, Statistic, Row, Col, Empty, Timeline, Modal, Upload, message } from 'antd'
+import { RobotOutlined, SendOutlined, SettingOutlined, FileSearchOutlined, CheckCircleOutlined, CloseCircleOutlined, ThunderboltOutlined, DatabaseOutlined, BookOutlined, HistoryOutlined, UploadOutlined, FileImageOutlined, FilePdfOutlined, FileTextOutlined as FileTextIcon } from '@ant-design/icons'
+import { agentAPI, ProcessRequest } from '../services/agentApi'
 import agentAutomationAPI, { AgentExecuteResult } from '../services/agentAutomation'
 
 const { TextArea } = Input
-const { Title, Text, Paragraph } = Typography
+const { Title, Text } = Typography
 const { TabPane } = Tabs
 
-const intentIcons: Record<string, React.ReactNode> = {
-  parameter_extraction: <FileSearchOutlined />,
-  document_translation: <TranslationOutlined />,
-  report_generation: <FileTextOutlined />,
-  general_chat: <RobotOutlined />
+interface Message {
+  id: string
+  content: string
+  type: 'user' | 'bot'
+  timestamp: Date
+  files?: Array<{
+    name: string
+    url: string
+    type: string
+  }>
+  attachments?: Array<{
+    name: string
+    type: string
+    size: number
+  }>
 }
 
-const intentColors: Record<string, string> = {
-  parameter_extraction: 'blue',
-  document_translation: 'green',
-  report_generation: 'purple',
-  simulation_run: 'orange',
-  software_operation: 'red',
-  general_chat: 'default'
+const getFileIcon = (fileName: string) => {
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+    return <FileImageOutlined />
+  } else if (['pdf'].includes(ext)) {
+    return <FilePdfOutlined />
+  } else {
+    return <FileTextIcon />
+  }
 }
 
 const AgentPanel: React.FC = () => {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [response, setResponse] = useState<AgentResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [executing, setExecuting] = useState(false)
-  const [executionProgress, setExecutionProgress] = useState(0)
 
   const [activeTab, setActiveTab] = useState('1')
 
@@ -46,6 +54,20 @@ const AgentPanel: React.FC = () => {
 
   const [memoryStats, setMemoryStats] = useState<any>(null)
   const [loadingMemory, setLoadingMemory] = useState(false)
+
+  // 聊天消息列表
+  const [messages, setMessages] = useState<Message[]>([])
+  const [attachments, setAttachments] = useState<Array<{name: string, type: string, size: number}>>([])
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // 自动滚动到最新消息
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   useEffect(() => {
     if (activeTab === '2') {
@@ -99,41 +121,64 @@ const AgentPanel: React.FC = () => {
     }
   }
 
+  const handleFileUpload = (file: any) => {
+    const mockFile = {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    }
+    setAttachments(prev => [...prev, mockFile])
+    message.success(`文件 ${file.name} 上传成功`)
+    return false
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = async () => {
-    if (!input.trim()) return
+    if (!input.trim() && attachments.length === 0) return
+
+    // 添加用户消息
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: input,
+      type: 'user',
+      timestamp: new Date(),
+      attachments
+    }
+    setMessages(prev => [...prev, userMessage])
 
     setLoading(true)
-    setError(null)
-    setResponse(null)
 
     try {
       const request: ProcessRequest = {
         user_input: input,
-        attachments: []
+        attachments: attachments.map(a => a.name)
       }
 
       const result = await agentAPI.process(request)
-      setResponse(result)
+
+      // 添加机器人回复
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: result.response_text || '已处理您的请求',
+        type: 'bot',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, botMessage])
     } catch (err: any) {
-      setError(err.unifiedMessage || '处理请求失败，请稍后重试')
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: err.unifiedMessage || '处理请求失败，请稍后重试',
+        type: 'bot',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleExecutePlan = async () => {
-    if (!response?.execution_plan) return
-
-    setExecuting(true)
-    setExecutionProgress(0)
-
-    try {
-      await agentAPI.executePlan(response.execution_plan as ExecutionPlan)
-      setExecutionProgress(100)
-    } catch (err: any) {
-      setError(err.unifiedMessage || '执行计划失败')
-    } finally {
-      setExecuting(false)
+      setInput('')
+      setAttachments([])
     }
   }
 
@@ -205,129 +250,221 @@ const AgentPanel: React.FC = () => {
     <div className="agent-panel" style={{ padding: '24px' }}>
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
         <TabPane tab={<span><RobotOutlined />智能对话</span>} key="1">
-          <Card
-            title={
+          <Card style={{ minHeight: 600, position: 'relative' }}>
+            {/* 聊天头部 */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '16px 24px', 
+              borderBottom: '1px solid #f0f0f0',
+              marginBottom: 0
+            }}>
               <Space>
-                <RobotOutlined />
-                <span>智能Agent控制面板</span>
+                <RobotOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                <span style={{ fontSize: 18, fontWeight: 600 }}>智能Agent助手</span>
               </Space>
-            }
-            extra={
               <Space>
-                <Button icon={<SettingOutlined />}>设置</Button>
+                <Button icon={<SettingOutlined />} size="small" />
               </Space>
-            }
-          >
-            <div style={{ marginBottom: 24 }}>
-              <TextArea
-                rows={4}
-                placeholder="输入您的需求，例如：从这个PDF提取参数并生成报告，或者翻译这篇文档"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                style={{ marginBottom: 16 }}
-              />
+            </div>
 
-              <Space>
+            {/* 消息列表 */}
+            <div 
+              style={{ 
+                padding: '24px', 
+                height: 400, 
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px'
+              }}
+            >
+              {/* 欢迎消息 */}
+              {messages.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#888', padding: '40px 0' }}>
+                  <RobotOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                  <div style={{ fontSize: 16 }}>你好！我是你的智能化工助手</div>
+                  <div style={{ fontSize: 14, marginTop: 8 }}>可以帮你处理文档、运行模拟、分析数据等</div>
+                </div>
+              )}
+
+              {/* 消息 */}
+              {messages.map((msg) => (
+                <div 
+                  key={msg.id} 
+                  style={{
+                    display: 'flex',
+                    flexDirection: msg.type === 'user' ? 'row-reverse' : 'row',
+                    alignItems: 'flex-start'
+                  }}
+                >
+                  {/* 头像 */}
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 8px'
+                  }}>
+                    {msg.type === 'user' ? (
+                      <div style={{ background: '#1890ff', color: 'white', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>你</div>
+                    ) : (
+                      <div style={{ background: '#f0f0f0', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><RobotOutlined /></div>
+                    )}
+                  </div>
+
+                  {/* 消息内容 */}
+                  <div style={{
+                    maxWidth: '70%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    {/* 消息文本 */}
+                    <div style={{
+                      padding: '12px 16px',
+                      borderRadius: msg.type === 'user' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                      backgroundColor: msg.type === 'user' ? '#1890ff' : '#f5f5f5',
+                      color: msg.type === 'user' ? 'white' : 'inherit'
+                    }}>
+                      {msg.content}
+                    </div>
+
+                    {/* 附件 */}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        marginLeft: msg.type === 'user' ? '0' : '8px'
+                      }}>
+                        {msg.attachments.map((file, index) => (
+                          <div key={index} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            backgroundColor: msg.type === 'user' ? '#e6f7ff' : '#fafafa',
+                            fontSize: 12
+                          }}>
+                            {getFileIcon(file.name)}
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {file.name}
+                            </span>
+                            <span style={{ color: '#888' }}>
+                              {(file.size / 1024).toFixed(1)}KB
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 时间戳 */}
+                    <div style={{
+                      fontSize: 12,
+                      color: '#888',
+                      textAlign: msg.type === 'user' ? 'right' : 'left',
+                      marginTop: '4px'
+                    }}>
+                      {msg.timestamp.toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* 加载状态 */}
+              {loading && (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <Spin size="small" />
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                    正在思考...
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* 输入区域 */}
+            <div style={{
+              padding: '24px',
+              borderTop: '1px solid #f0f0f0',
+              position: 'sticky',
+              bottom: 0,
+              backgroundColor: 'white'
+            }}>
+              {/* 附件预览 */}
+              {attachments.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginBottom: '12px',
+                  flexWrap: 'wrap'
+                }}>
+                  {attachments.map((file, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '6px 12px',
+                      borderRadius: '16px',
+                      backgroundColor: '#f5f5f5',
+                      fontSize: 12
+                    }}>
+                      {getFileIcon(file.name)}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                        {file.name}
+                      </span>
+                      <Button 
+                        size="small" 
+                        type="text" 
+                        onClick={() => removeAttachment(index)}
+                        style={{ color: '#ff4d4f' }}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 输入框和按钮 */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                {/* 文件上传 */}
+                <Upload
+                  beforeUpload={handleFileUpload}
+                  showUploadList={false}
+                  maxCount={5}
+                >
+                  <Button icon={<UploadOutlined />} size="small" />
+                </Upload>
+
+                {/* 输入框 */}
+                <TextArea
+                  rows={2}
+                  placeholder="输入您的需求，例如：从这个PDF提取参数并生成报告，或者翻译这篇文档"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  style={{ flex: 1, resize: 'none' }}
+                />
+
+                {/* 发送按钮 */}
                 <Button
                   type="primary"
                   icon={<SendOutlined />}
                   onClick={handleSubmit}
                   loading={loading}
+                  disabled={!input.trim() && attachments.length === 0}
                   size="large"
                 >
-                  发送请求
+                  发送
                 </Button>
-              </Space>
+              </div>
             </div>
-
-            {loading && (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: 16 }}>
-                  <Text type="secondary">正在分析您的请求...</Text>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <Alert
-                message="错误"
-                description={error}
-                type="error"
-                showIcon
-                style={{ marginBottom: 24 }}
-                closable
-              />
-            )}
-
-            {response && !loading && (
-              <div className="response-section">
-                <Divider orientation="left">处理结果</Divider>
-
-                <Card size="small" style={{ marginBottom: 16 }}>
-                  <Space>
-                    <Text strong>识别意图：</Text>
-                    <Tag
-                      color={intentColors[response.intent] || 'default'}
-                      icon={intentIcons[response.intent]}
-                    >
-                      {response.intent}
-                    </Tag>
-                    <Text type="secondary">置信度：{(response.confidence * 100).toFixed(1)}%</Text>
-                  </Space>
-                </Card>
-
-                {response.extracted_parameters && Object.keys(response.extracted_parameters).length > 0 && (
-                  <Card size="small" title="提取的参数" style={{ marginBottom: 16 }}>
-                    <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4 }}>
-                      {JSON.stringify(response.extracted_parameters, null, 2)}
-                    </pre>
-                  </Card>
-                )}
-
-                {response.suggested_actions && response.suggested_actions.length > 0 && (
-                  <Card size="small" title="建议操作" style={{ marginBottom: 16 }}>
-                    <Space wrap>
-                      {response.suggested_actions.map((action, index) => (
-                        <Tag key={index} color="blue">
-                          {action.label}
-                        </Tag>
-                      ))}
-                    </Space>
-                  </Card>
-                )}
-
-                {response.execution_plan && (
-                  <Card
-                    size="small"
-                    title="执行计划"
-                    extra={
-                      <Button
-                        type="primary"
-                        onClick={handleExecutePlan}
-                        loading={executing}
-                        disabled={executing}
-                      >
-                        {executing ? '执行中...' : '执行计划'}
-                      </Button>
-                    }
-                  >
-                    {executing && (
-                      <Progress percent={executionProgress} status="active" style={{ marginBottom: 16 }} />
-                    )}
-                    <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4 }}>
-                      {JSON.stringify(response.execution_plan, null, 2)}
-                    </pre>
-                  </Card>
-                )}
-
-                {response.response_text && (
-                  <Card size="small" title="响应" style={{ marginTop: 16 }}>
-                    <Paragraph>{response.response_text}</Paragraph>
-                  </Card>
-                )}
-              </div>
-            )}
           </Card>
 
           <Card

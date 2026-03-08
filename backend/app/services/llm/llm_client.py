@@ -285,11 +285,19 @@ class LLMService:
     def get_client(self, provider: str = None) -> Optional[LLMClientBase]:
         """获取LLM客户端"""
         if provider is None:
-            provider = self.get_available_providers()[0] if self.configs else None
+            keys = list(self.configs.keys())
+            if not keys:
+                return None
+            key = keys[0]
+            provider = key.split(":")[0] if ":" in key else key
+            return LLMClientFactory.get_client(provider, self.configs[key])
             
-        if provider and provider in self.configs:
-            return LLMClientFactory.get_client(provider, self.configs[provider])
-            
+        for key, config in self.configs.items():
+            if key.startswith(provider + ":"):
+                return LLMClientFactory.get_client(provider, config)
+            if provider in key:
+                return LLMClientFactory.get_client(provider, config)
+        
         return None
         
     async def chat(

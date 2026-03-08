@@ -9,12 +9,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import logging
+from sqlalchemy.orm import Session
+from ..database import get_db
 
 from ..services.agent import agent_service, AgentRequest, TaskIntent
+from ..services.llm.llm_client import llm_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/agent", tags=["Agent"])
+router = APIRouter(tags=["Agent"])
 
 class ProcessRequest(BaseModel):
     """处理请求"""
@@ -40,9 +43,14 @@ INTENT_DESCRIPTIONS = {
 }
 
 @router.post("/process")
-async def process_request(request: ProcessRequest):
+async def process_request(request: ProcessRequest, db: Session = Depends(get_db)):
     """处理用户请求"""
     try:
+        from ..services.llm.llm_config_service import LLMConfigService
+        user_configs = LLMConfigService.get_valid_configs(db, 1)
+        if user_configs:
+            llm_service.load_user_configs(user_configs)
+        
         agent_request = AgentRequest(
             user_input=request.user_input,
             context=request.context,
