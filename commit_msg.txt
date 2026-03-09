@@ -1,0 +1,5 @@
+fix(frontend): fix React warnings
+
+- Fix missing key prop in Dashboard.tsx Table dataSource
+- Replace deprecated Tabs.TabPane with items prop in AgentPanel.tsx
+- Fix Select value being null in LLMConfigPage.tsx

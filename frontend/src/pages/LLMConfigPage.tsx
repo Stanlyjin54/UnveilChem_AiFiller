@@ -72,8 +72,8 @@ const LLMConfigPage: React.FC = () => {
 
   const handleFactoryChange = (value: string) => {
     loadModels(value)
-    form.setFieldValue('llm_name', undefined)
-    form.setFieldValue('model_type', undefined)
+    form.setFieldValue('llm_name', '')
+    form.setFieldValue('model_type', '')
   }
 
   const handleModelChange = (value: string) => {

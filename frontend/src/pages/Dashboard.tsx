@@ -49,14 +49,14 @@ const Dashboard: React.FC = () => {
 
   // 版本功能对比数据
   const versionFeatures = [
-    { feature: '基础PDF解析', basic: true, pro: true, enterprise: true },
-    { feature: '基础OCR识别', basic: true, pro: true, enterprise: true },
-    { feature: 'Pix2Text复杂PDF解析', basic: false, pro: true, enterprise: true },
-    { feature: 'PaddleOCR高精度识别', basic: false, pro: true, enterprise: true },
-    { feature: '高级统一解析器', basic: false, pro: false, enterprise: true },
-    { feature: '月使用配额', basic: '100次', pro: '500次', enterprise: '无限' },
-    { feature: '优先处理', basic: false, pro: false, enterprise: true },
-    { feature: '自动化功能', basic: false, pro: true, enterprise: true },
+    { key: '1', feature: '基础PDF解析', basic: true, pro: true, enterprise: true },
+    { key: '2', feature: '基础OCR识别', basic: true, pro: true, enterprise: true },
+    { key: '3', feature: 'Pix2Text复杂PDF解析', basic: false, pro: true, enterprise: true },
+    { key: '4', feature: 'PaddleOCR高精度识别', basic: false, pro: true, enterprise: true },
+    { key: '5', feature: '高级统一解析器', basic: false, pro: false, enterprise: true },
+    { key: '6', feature: '月使用配额', basic: '100次', pro: '500次', enterprise: '无限' },
+    { key: '7', feature: '优先处理', basic: false, pro: false, enterprise: true },
+    { key: '8', feature: '自动化功能', basic: false, pro: true, enterprise: true },
   ];
 
   // 表格列配置

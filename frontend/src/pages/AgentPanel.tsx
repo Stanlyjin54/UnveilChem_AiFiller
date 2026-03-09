@@ -6,7 +6,6 @@ import agentAutomationAPI, { AgentExecuteResult } from '../services/agentAutomat
 
 const { TextArea } = Input
 const { Title, Text } = Typography
-const { TabPane } = Tabs
 
 interface Message {
   id: string
@@ -246,10 +245,12 @@ const AgentPanel: React.FC = () => {
     { text: '在AutoCAD中绘制设备图纸', type: 'cad' }
   ]
 
-  return (
-    <div className="agent-panel" style={{ padding: '24px' }}>
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab={<span><RobotOutlined />智能对话</span>} key="1">
+  const tabItems = [
+    {
+      key: '1',
+      label: <span><RobotOutlined />智能对话</span>,
+      children: (
+        <>
           <Card style={{ minHeight: 600, position: 'relative' }}>
             {/* 聊天头部 */}
             <div style={{ 
@@ -479,9 +480,14 @@ const AgentPanel: React.FC = () => {
               <li><Text code>用Aspen Plus运行模拟</Text> - 模拟运行</li>
             </ul>
           </Card>
-        </TabPane>
-
-        <TabPane tab={<span><ThunderboltOutlined />化工自动化</span>} key="2">
+        </>
+      ),
+    },
+    {
+      key: '2',
+      label: <span><ThunderboltOutlined />化工自动化</span>,
+      children: (
+        <>
           <Card
             title={
               <Space>
@@ -691,9 +697,14 @@ const AgentPanel: React.FC = () => {
               <Empty description="暂无Skills" />
             )}
           </Card>
-        </TabPane>
-
-        <TabPane tab={<span><HistoryOutlined />执行历史</span>} key="3">
+        </>
+      ),
+    },
+    {
+      key: '3',
+      label: <span><HistoryOutlined />执行历史</span>,
+      children: (
+        <>
           <Card
             title={
               <Space>
@@ -733,9 +744,14 @@ const AgentPanel: React.FC = () => {
               <Empty description="暂无执行历史" />
             )}
           </Card>
-        </TabPane>
-
-        <TabPane tab={<span><DatabaseOutlined />记忆系统</span>} key="4">
+        </>
+      ),
+    },
+    {
+      key: '4',
+      label: <span><DatabaseOutlined />记忆系统</span>,
+      children: (
+        <>
           <Card
             title={
               <Space>
@@ -771,8 +787,14 @@ const AgentPanel: React.FC = () => {
               </Row>
             )}
           </Card>
-        </TabPane>
-      </Tabs>
+        </>
+      ),
+    },
+  ]
+
+  return (
+    <div className="agent-panel" style={{ padding: '24px' }}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
     </div>
   )
 }
