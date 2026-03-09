@@ -1,5 +1,10 @@
 # 版本历史
 
+## 1.0.3 (2026-03-08)
+- 修复文档管理页面：添加缺失的 report-templates 预览 API 路由
+- 修复文档管理页面：在 ReportGenerator 类中添加 get_template_preview 方法
+- 新增默认报告模板：创建 default.html 报告模板文件
+
 ## 1.0.2 (2026-03-08)
 - 修复前端警告：修复 Dashboard.tsx 中 Table 数据源缺少 key 属性的警告
 - 修复前端警告：修复 AgentPanel.tsx 中使用已弃用的 Tabs.TabPane 组件，改用 items 属性

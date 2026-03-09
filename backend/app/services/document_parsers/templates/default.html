@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档分析报告</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #1890ff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #1890ff;
+            margin: 0;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            color: #1890ff;
+            border-left: 4px solid #1890ff;
+            padding-left: 10px;
+            margin-bottom: 15px;
+        }
+        .entity-list, .parameter-list {
+            list-style: none;
+            padding: 0;
+        }
+        .entity-list li, .parameter-list li {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .confidence {
+            color: #52c41a;
+            font-weight: bold;
+        }
+        .extracted-text {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>文档分析报告</h1>
+        <p>生成时间: {{ generated_at }}</p>
+    </div>
+
+    {% if chemical_entities %}
+    <div class="section">
+        <h2>化学实体</h2>
+        <ul class="entity-list">
+            {% for entity in chemical_entities %}
+            <li>
+                <strong>{{ entity.text }}</strong> ({{ entity.type }})
+                <br>置信度: <span class="confidence">{{ "%.2f"|format(entity.confidence * 100) }}%</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if process_parameters %}
+    <div class="section">
+        <h2>工艺参数</h2>
+        <ul class="parameter-list">
+            {% for param in process_parameters %}
+            <li>
+                <strong>{{ param.name }}</strong>: {{ param.value }} {{ param.unit }}
+                <br>置信度: <span class="confidence">{{ "%.2f"|format(param.confidence * 100) }}%</span>
+                {% if param.original_text %}
+                <br>原文: {{ param.original_text }}
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if extracted_text %}
+    <div class="section">
+        <h2>提取的文本</h2>
+        <div class="extracted-text">{{ extracted_text }}</div>
+    </div>
+    {% endif %}
+
+    {% if translation_result %}
+    <div class="section">
+        <h2>翻译结果</h2>
+        <p><strong>源语言:</strong> {{ translation_result.source_lang }}</p>
+        <p><strong>目标语言:</strong> {{ translation_result.target_lang }}</p>
+        <div class="extracted-text">{{ translation_result.translated_text }}</div>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>由 UnveilChem AI 化工软件自动化平台生成</p>
+    </div>
+</body>
+</html>

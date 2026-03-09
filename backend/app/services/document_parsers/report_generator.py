@@ -154,6 +154,22 @@ class ReportGenerator:
         """
         return [f for f in os.listdir(self.template_dir) if f.endswith(".html") or f.endswith(".txt")]
     
+    def get_template_preview(self, template_name: str) -> str:
+        """获取模板预览内容
+        
+        Args:
+            template_name: 模板名称
+            
+        Returns:
+            模板预览内容
+        """
+        template_path = os.path.join(self.template_dir, template_name)
+        if not os.path.exists(template_path):
+            raise FileNotFoundError(f"模板不存在: {template_name}")
+        
+        with open(template_path, "r", encoding="utf-8") as f:
+            return f.read()
+    
     def generate_chart(self, chart_type: str, data: Dict[str, Any]) -> str:
         """生成图表
         

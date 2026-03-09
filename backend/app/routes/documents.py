@@ -430,3 +430,27 @@ async def list_report_templates(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模板列表失败: {str(e)}")
+
+@router.get("/report-templates/{template_name}/preview")
+async def get_template_preview(
+    template_name: str,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """获取报告模板的预览内容"""
+    # 验证用户
+    username = verify_token(token)
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    try:
+        # 获取模板预览
+        preview_content = parser_manager.report_generator.get_template_preview(template_name)
+        
+        return {
+            "success": True,
+            "preview_content": preview_content
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取模板预览失败: {str(e)}")
