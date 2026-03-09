@@ -1207,3 +1207,171 @@ async def get_execution_detail(
     except Exception as e:
         logger.error(f"获取执行详情失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取详情失败: {str(e)}")
+
+
+# 参数映射相关模型
+class ParameterMappingCreate(BaseModel):
+    standard_parameter: str = Field(..., description="标准参数名称")
+    software_specific_parameter: str = Field(..., description="软件特定参数名称")
+    software_name: str = Field(..., description="软件名称")
+    adapter_type: str = Field(..., description="适配器类型")
+    description: str = Field(default="", description="映射描述")
+    enabled: bool = Field(default=True, description="是否启用")
+
+
+class ParameterMappingUpdate(BaseModel):
+    standard_parameter: Optional[str] = None
+    software_specific_parameter: Optional[str] = None
+    software_name: Optional[str] = None
+    adapter_type: Optional[str] = None
+    description: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
+class ParameterMappingBatch(BaseModel):
+    mappings: List[ParameterMappingCreate]
+
+
+class ParameterMappingToggle(BaseModel):
+    enabled: bool
+
+
+# 临时内存存储参数映射
+_parameter_mappings = []
+
+
+@router.get("/parameter-mappings", response_model=Dict[str, Any])
+async def get_parameter_mappings(
+    current_user: User = Depends(get_current_user)
+):
+    """获取所有参数映射"""
+    try:
+        return {
+            "success": True,
+            "mappings": _parameter_mappings
+        }
+    except Exception as e:
+        logger.error(f"获取参数映射失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取参数映射失败: {str(e)}")
+
+
+@router.post("/parameter-mappings", response_model=Dict[str, Any])
+async def create_parameter_mapping(
+    mapping: ParameterMappingCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """创建参数映射"""
+    try:
+        new_mapping = {
+            "id": str(len(_parameter_mappings) + 1),
+            **mapping.dict(),
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
+        _parameter_mappings.append(new_mapping)
+        return {
+            "success": True,
+            "mapping": new_mapping
+        }
+    except Exception as e:
+        logger.error(f"创建参数映射失败: {e}")
+        raise HTTPException(status_code=500, detail=f"创建参数映射失败: {str(e)}")
+
+
+@router.put("/parameter-mappings/{mapping_id}", response_model=Dict[str, Any])
+async def update_parameter_mapping(
+    mapping_id: str,
+    mapping: ParameterMappingUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """更新参数映射"""
+    try:
+        for i, m in enumerate(_parameter_mappings):
+            if m["id"] == mapping_id:
+                update_data = {k: v for k, v in mapping.dict().items() if v is not None}
+                _parameter_mappings[i].update(update_data)
+                _parameter_mappings[i]["updated_at"] = datetime.now().isoformat()
+                return {
+                    "success": True,
+                    "mapping": _parameter_mappings[i]
+                }
+        raise HTTPException(status_code=404, detail="参数映射不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新参数映射失败: {e}")
+        raise HTTPException(status_code=500, detail=f"更新参数映射失败: {str(e)}")
+
+
+@router.delete("/parameter-mappings/{mapping_id}", response_model=Dict[str, Any])
+async def delete_parameter_mapping(
+    mapping_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """删除参数映射"""
+    try:
+        for i, m in enumerate(_parameter_mappings):
+            if m["id"] == mapping_id:
+                _parameter_mappings.pop(i)
+                return {
+                    "success": True,
+                    "message": "删除成功"
+                }
+        raise HTTPException(status_code=404, detail="参数映射不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除参数映射失败: {e}")
+        raise HTTPException(status_code=500, detail=f"删除参数映射失败: {str(e)}")
+
+
+@router.patch("/parameter-mappings/{mapping_id}/toggle", response_model=Dict[str, Any])
+async def toggle_parameter_mapping(
+    mapping_id: str,
+    toggle: ParameterMappingToggle,
+    current_user: User = Depends(get_current_user)
+):
+    """切换参数映射启用状态"""
+    try:
+        for m in _parameter_mappings:
+            if m["id"] == mapping_id:
+                m["enabled"] = toggle.enabled
+                m["updated_at"] = datetime.now().isoformat()
+                return {
+                    "success": True,
+                    "mapping": m
+                }
+        raise HTTPException(status_code=404, detail="参数映射不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"切换参数映射状态失败: {e}")
+        raise HTTPException(status_code=500, detail=f"切换参数映射状态失败: {str(e)}")
+
+
+@router.post("/parameter-mappings/batch", response_model=Dict[str, Any])
+async def batch_create_parameter_mappings(
+    batch: ParameterMappingBatch,
+    current_user: User = Depends(get_current_user)
+):
+    """批量创建参数映射"""
+    try:
+        created_mappings = []
+        for mapping in batch.mappings:
+            new_mapping = {
+                "id": str(len(_parameter_mappings) + len(created_mappings) + 1),
+                **mapping.dict(),
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+            _parameter_mappings.append(new_mapping)
+            created_mappings.append(new_mapping)
+        
+        return {
+            "success": True,
+            "mappings": created_mappings,
+            "count": len(created_mappings)
+        }
+    except Exception as e:
+        logger.error(f"批量创建参数映射失败: {e}")
+        raise HTTPException(status_code=500, detail=f"批量创建参数映射失败: {str(e)}")

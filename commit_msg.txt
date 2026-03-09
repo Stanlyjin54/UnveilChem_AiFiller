@@ -1,5 +1,9 @@
-fix(backend): fix document management page 404 error
+fix(backend): add parameter mapping API endpoints
 
-- Add missing API route for report template preview
-- Add get_template_preview method to ReportGenerator class
-- Create default.html report template file
+- Add GET /automation/parameter-mappings endpoint
+- Add POST /automation/parameter-mappings endpoint
+- Add PUT /automation/parameter-mappings/{id} endpoint
+- Add DELETE /automation/parameter-mappings/{id} endpoint
+- Add PATCH /automation/parameter-mappings/{id}/toggle endpoint
+- Add POST /automation/parameter-mappings/batch endpoint
+- Add Pydantic models for parameter mapping operations
