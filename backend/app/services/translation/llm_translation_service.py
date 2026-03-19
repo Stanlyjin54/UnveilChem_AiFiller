@@ -7,6 +7,7 @@ LLM翻译服务
 
 import hashlib
 import logging
+import aiohttp
 from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -84,24 +85,33 @@ class LLMTranslationService:
         self.cache = TranslationCache()
         
     async def translate(self, request: TranslationRequest) -> TranslationResponse:
-        """执行翻译"""
+        """执行翻译 - 直接调用 Ollama API 使用 HY-MT1.5-1.8B"""
         
         if request.use_cache:
             cached = self.cache.get(request.text, request.source_lang, request.target_lang)
             if cached:
                 cached.cached = True
                 return cached
-            
-        prompt = self._build_prompt(request)
         
         try:
-            translated = await self.llm.chat(
-                prompt,
-                provider=request.provider,
-                temperature=0.3
-            )
+            base_url = "http://localhost:11434"
             
-            result = TranslationResponse(
+            lang_in = request.source_lang if request.source_lang != "auto" else "auto"
+            prompt = f"translate {lang_in} to {request.target_lang}:{request.text}"
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{base_url}/api/generate",
+                    json={
+                        "model": "demonbyron/HY-MT1.5-1.8B:latest",
+                        "prompt": prompt,
+                        "stream": False
+                    }
+                ) as resp:
+                    result = await resp.json()
+                    translated = result["response"]
+            
+            translation_result = TranslationResponse(
                 translated_text=translated,
                 source_lang=request.source_lang,
                 target_lang=request.target_lang,
@@ -109,9 +119,9 @@ class LLMTranslationService:
             )
             
             if request.use_cache:
-                self.cache.set(request.text, request.source_lang, request.target_lang, result)
+                self.cache.set(request.text, request.source_lang, request.target_lang, translation_result)
                 
-            return result
+            return translation_result
             
         except Exception as e:
             logger.error(f"翻译失败: {e}")
@@ -157,7 +167,7 @@ class LLMTranslationService:
             text=request.text
         )
     
-    def _split_text(self, text: str, max_length: int = 2000) -> List[str]:
+    def _split_text(self, text: str, max_length: int = 1000) -> List[str]:
         """分段处理长文本"""
         paragraphs = text.split("\n\n")
         segments = []

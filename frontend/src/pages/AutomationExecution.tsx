@@ -51,7 +51,7 @@ const AutomationExecution: React.FC = () => {
         setLastRefreshTime(new Date())
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '获取任务列表失败')
+      message.error(error.unifiedMessage || '获取任务列表失败')
     } finally {
       setLoading(false)
     }
@@ -65,7 +65,7 @@ const AutomationExecution: React.FC = () => {
         setSupportedSoftware(response.data.supported_software)
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '获取支持的软件列表失败')
+      message.error(error.unifiedMessage || '获取支持的软件列表失败')
     }
   }
 
@@ -77,7 +77,7 @@ const AutomationExecution: React.FC = () => {
       // 刷新任务列表
       fetchTasks()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '取消任务失败')
+      message.error(error.unifiedMessage || '取消任务失败')
     }
   }
 

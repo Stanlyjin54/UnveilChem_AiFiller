@@ -93,3 +93,6 @@ Thumbs.db
 
 # Old parsers directory (moved to backend/app/services/)
 parsers/
+
+# PDFMathTranslate
+temp_pdf2zh/

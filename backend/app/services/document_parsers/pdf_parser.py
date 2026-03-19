@@ -18,6 +18,9 @@ try:
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
+    Image = None
+    ImageEnhance = None
+    fitz = None
     logging.warning("PDF解析依赖缺失,请安装pymupdf, pillow, pytesseract")
 
 # 导入Pix2Text
@@ -37,7 +40,7 @@ class PDFParser(BaseDocumentParser):
         super().__init__()
         self.supported_extensions = ['.pdf']
         self.parser_name = "PDF_PARSER_V1"
-        self.resource_level = "medium"  # 设置资源等级
+        self.resource_level = "low"  # 设置资源等级 - low表示快速解析
         
         # 初始化Pix2Text
         self.p2t = None
@@ -54,7 +57,7 @@ class PDFParser(BaseDocumentParser):
         return file_path.suffix.lower() == '.pdf'
     
     def parse(self, file_path: Path) -> Dict[str, Any]:
-        """解析PDF文件"""
+        """解析PDF文件 - 优化版本：优先直接文本提取，成功后立即返回"""
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {file_path}")
         
@@ -71,44 +74,52 @@ class PDFParser(BaseDocumentParser):
         }
         
         try:
-            # 方法1: 尝试直接文本提取
+            logging.info(f"[PDF解析] 开始解析文件: {file_path}")
+            
+            # 方法1: 优先直接文本提取 - PyMuPDF直接提取文本，速度最快
+            logging.info("[PDF解析] 尝试方法1: 直接文本提取 (PyMuPDF)")
             text_result = self._extract_text_directly(file_path)
             if text_result["success"]:
+                logging.info(f"[PDF解析] 直接文本提取成功! 提取文本长度: {len(text_result.get('text_content', ''))}")
                 result.update(text_result)
                 result["success"] = True
+                # 成功后直接返回，不再尝试其他方法
+                if result["text_content"]:
+                    result["parameters"] = self._extract_parameters(result["text_content"])
+                return result
+            
+            logging.warning(f"[PDF解析] 直接文本提取失败: {text_result.get('error', '未知错误')}")
             
             # 方法2: 如果直接提取失败，尝试OCR方法
             if not result["success"] and OCR_AVAILABLE:
+                logging.info("[PDF解析] 尝试方法2: OCR文本提取")
                 ocr_result = self._extract_text_via_ocr(file_path)
                 if ocr_result["success"]:
+                    logging.info(f"[PDF解析] OCR提取成功! 提取文本长度: {len(ocr_result.get('text_content', ''))}")
                     result.update(ocr_result)
                     result["success"] = True
+                    if result["text_content"]:
+                        result["parameters"] = self._extract_parameters(result["text_content"])
+                    return result
+                
+                logging.warning(f"[PDF解析] OCR提取失败: {ocr_result.get('error', '未知错误')}")
             
-            # 方法3: 如果需要，使用Pix2Text解析复杂PDF（包含表格、公式）
-            if self.p2t:
+            # 方法3: 如果有Pix2Text，尝试解析复杂PDF（包含表格、公式）
+            if self.p2t and not result["success"]:
+                logging.info("[PDF解析] 尝试方法3: Pix2Text解析")
                 pix2text_result = self._extract_text_with_pix2text(file_path)
-                # 合并Pix2Text结果，优先使用Pix2Text的表格和公式解析
                 if pix2text_result["success"]:
-                    # 只更新表格和公式部分，保留原有文本提取结果
+                    logging.info(f"[PDF解析] Pix2Text提取成功!")
                     if pix2text_result.get("tables"):
                         result["tables"] = pix2text_result["tables"]
-                    if pix2text_result.get("text_content") and not result["text_content"]:
+                    if pix2text_result.get("text_content"):
                         result["text_content"] = pix2text_result["text_content"]
                     result["success"] = True
+                    if result["text_content"]:
+                        result["parameters"] = self._extract_parameters(result["text_content"])
+                    return result
             
-            # 方法4: 提取文档中的图片并进行OCR识别
-            if OCR_AVAILABLE:
-                image_ocr_result = self._extract_images_and_ocr(file_path)
-                if image_ocr_result["success"]:
-                    # 合并图片OCR结果到文本内容
-                    if image_ocr_result["text_content"]:
-                        result["text_content"] += "\n" + image_ocr_result["text_content"]
-                    # 合并图片列表
-                    result["images"].extend(image_ocr_result["images"])
-            
-            # 提取参数
-            if result["text_content"]:
-                result["parameters"] = self._extract_parameters(result["text_content"])
+            logging.error(f"[PDF解析] 所有方法都失败，最终文本为空")
             
         except Exception as e:
             result["errors"].append(f"PDF解析失败: {str(e)}")
@@ -202,8 +213,11 @@ class PDFParser(BaseDocumentParser):
         
         return result
     
-    def _enhance_image_for_ocr(self, image: Image.Image) -> Image.Image:
+    def _enhance_image_for_ocr(self, image) -> object:
         """增强图像以提高OCR识别率"""
+        if ImageEnhance is None:
+            return image
+        
         # 转换为灰度
         if image.mode != 'L':
             image = image.convert('L')

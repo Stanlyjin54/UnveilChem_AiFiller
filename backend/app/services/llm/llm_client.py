@@ -41,6 +41,7 @@ class LLMConfig:
     base_url: Optional[str] = None
     max_tokens: int = 4096
     temperature: float = 0.7
+    enable_thinking: bool = False
 
 @dataclass
 class ChatMessage:
@@ -117,10 +118,12 @@ class OpenAIClient(LLMClientBase):
             "max_tokens": kwargs.get("max_tokens", self.config.max_tokens)
         }
         async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=300)
             async with session.post(
                 f"{self.config.base_url or 'https://api.openai.com/v1'}/chat/completions",
                 json=payload,
-                headers=headers
+                headers=headers,
+                timeout=timeout
             ) as resp:
                 result = await resp.json()
                 return result["choices"][0]["message"]["content"]
@@ -182,20 +185,45 @@ class OllamaClient(LLMClientBase):
         import aiohttp
         
         base_url = self.config.base_url or "http://localhost:11434"
+        
+        messages_list = [{"role": m.role, "content": m.content} for m in messages]
+        
+        if not self.config.enable_thinking and messages_list and messages_list[0].get("role") == "system":
+            messages_list[0]["content"] += "\n\n请直接输出结果，不要进行任何解释或推理过程。"
+        
         payload = {
             "model": self.config.model_name,
-            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "messages": messages_list,
             "temperature": kwargs.get("temperature", self.config.temperature),
             "stream": False
         }
         
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{base_url}/api/chat",
-                json=payload
-            ) as resp:
-                result = await resp.json()
-                return result["message"]["content"]
+        logger.info(f"[Ollama] 发送请求到 {base_url}/api/chat")
+        logger.info(f"[Ollama] 模型: {self.config.model_name}")
+        logger.info(f"[Ollama] 消息数量: {len(messages)}")
+        logger.info(f"[Ollama] enable_thinking: {self.config.enable_thinking}")
+        logger.info(f"[Ollama] 请求payload: {payload}")
+        
+        timeout = aiohttp.ClientTimeout(total=600)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                logger.info(f"[Ollama] 开始发送HTTP请求...")
+                async with session.post(
+                    f"{base_url}/api/chat",
+                    json=payload
+                ) as resp:
+                    logger.info(f"[Ollama] 收到响应，状态码: {resp.status}")
+                    if resp.status != 200:
+                        error_text = await resp.text()
+                        logger.error(f"[Ollama] 请求失败: {error_text}")
+                        raise Exception(f"Ollama API返回错误: {resp.status} - {error_text}")
+                    
+                    result = await resp.json()
+                    logger.info(f"[Ollama] 响应成功，内容长度: {len(result.get('message', {}).get('content', ''))}")
+                    return result["message"]["content"]
+        except Exception as e:
+            logger.error(f"[Ollama] 调用异常: {str(e)}", exc_info=True)
+            raise
 
 class LLMClientFactory:
     """LLM客户端工厂"""
@@ -273,7 +301,8 @@ class LLMService:
                 api_key=config.get("api_key", ""),
                 base_url=config.get("api_base", ""),
                 max_tokens=config.get("max_tokens", 4096),
-                temperature=config.get("temperature", 0.7)
+                temperature=config.get("temperature", 0.7),
+                enable_thinking=False
             )
             key = f"{provider}:{llm_config.model_name}"
             self.configs[key] = llm_config
@@ -308,16 +337,25 @@ class LLMService:
         **kwargs
     ) -> str:
         """发送聊天请求"""
+        logger.info(f"[LLMService] chat调用开始: prompt长度={len(prompt)}, provider={provider}")
+        logger.info(f"[LLMService] 当前可用配置: {list(self.configs.keys())}")
+        
         messages = []
         if system_prompt:
             messages.append(ChatMessage(role="system", content=system_prompt))
         messages.append(ChatMessage(role="user", content=prompt))
         
+        logger.info(f"[LLMService] 获取客户端...")
         client = self.get_client(provider)
         if client is None:
+            logger.error(f"[LLMService] 未找到可用的LLM客户端")
             return "错误: 未配置LLM，请先在设置中配置LLM API Key"
-            
-        return await client.chat(messages, **kwargs)
+        
+        logger.info(f"[LLMService] 客户端获取成功: {client.__class__.__name__}")
+        logger.info(f"[LLMService] 开始调用client.chat...")
+        result = await client.chat(messages, **kwargs)
+        logger.info(f"[LLMService] client.chat调用完成，结果长度={len(result)}")
+        return result
         
     async def chat_json(
         self, 

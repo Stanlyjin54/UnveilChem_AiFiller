@@ -501,15 +501,22 @@ const DocumentAnalyzer: React.FC = () => {
 
     setTranslating(true)
     try {
-      const response = await api.post('/documents/translate', {
+      const response = await api.post('/translation/translate', {
         text: results.extracted_text,
         source_lang: sourceLang,
-        target_lang: targetLang
+        target_lang: targetLang,
+        style: 'professional'
       })
-      setTranslationResult(response.data)
+      setTranslationResult({
+        success: true,
+        original_text: results.extracted_text,
+        translated_text: response.data.translated_text,
+        source_lang: response.data.source_lang,
+        target_lang: response.data.target_lang
+      })
       message.success('文本翻译完成')
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '翻译失败')
+      message.error(error.unifiedMessage || '翻译失败')
     } finally {
       setTranslating(false)
     }
@@ -561,7 +568,7 @@ const DocumentAnalyzer: React.FC = () => {
         message.success('报告生成完成')
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '报告生成失败')
+      message.error(error.unifiedMessage || '报告生成失败')
     } finally {
       setGeneratingReport(false)
     }
@@ -603,7 +610,7 @@ const DocumentAnalyzer: React.FC = () => {
         message.success('自动化任务已提交')
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '自动化执行失败')
+      message.error(error.unifiedMessage || '自动化执行失败')
       setAutomationStatus('自动化执行失败')
     } finally {
       setAutomating(false)
@@ -646,14 +653,8 @@ const DocumentAnalyzer: React.FC = () => {
             console.error('响应数据:', error.response.data)
             console.error('响应状态:', error.response.status)
             console.error('响应头:', error.response.headers)
-            message.error(error.response?.data?.detail || '分析失败')
-          } else if (error.request) {
-            console.error('请求已发送但没有收到响应:', error.request)
-            message.error('服务器无响应，请检查网络连接')
-          } else {
-            console.error('请求配置错误:', error.message)
-            message.error('请求失败: ' + error.message)
           }
+          message.error(error.unifiedMessage || '分析失败')
         } finally {
           setAnalyzing(false)
         }
@@ -1139,7 +1140,7 @@ const DocumentAnalyzer: React.FC = () => {
                                     setTemplatePreview(response.data.preview_content)
                                   }
                                 } catch (error: any) {
-                                  message.error(error.response?.data?.detail || '获取模板预览失败')
+                                  message.error(error.unifiedMessage || '获取模板预览失败')
                                   setTemplatePreview('')
                                 } finally {
                                   setPreviewLoading(false)

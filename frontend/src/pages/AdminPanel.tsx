@@ -117,7 +117,7 @@ const AdminPanel: React.FC = () => {
       message.success(`用户 ${username} 已成功提升为管理员`)
       fetchUsers()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '提升失败')
+      message.error(error.unifiedMessage || '提升失败')
     }
   }
 
@@ -127,7 +127,7 @@ const AdminPanel: React.FC = () => {
       message.success(`用户 ${username} 已降级为普通用户`)
       fetchUsers()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '降级失败')
+      message.error(error.unifiedMessage || '降级失败')
     }
   }
 
@@ -156,7 +156,7 @@ const AdminPanel: React.FC = () => {
       fetchUsers()
       handleCloseVersionModal()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '版本更新失败')
+      message.error(error.unifiedMessage || '版本更新失败')
     } finally {
       setVersionLoading(false)
     }

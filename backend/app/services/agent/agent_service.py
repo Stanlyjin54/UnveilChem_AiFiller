@@ -109,7 +109,8 @@ class AgentService:
         result = await self.llm.chat(
             prompt,
             provider=None,
-            temperature=0.3
+            temperature=0.3,
+            enable_thinking=False
         )
         
         try:
@@ -148,7 +149,8 @@ class AgentService:
             result = await self.llm.chat_json(
                 prompt,
                 provider=None,
-                temperature=0.2
+                temperature=0.2,
+                enable_thinking=False
             )
             return result.get("parameters", {})
         except Exception as e:
@@ -259,7 +261,8 @@ class AgentService:
         response_text = await self.llm.chat(
             request.user_input,
             system_prompt="你是一个化工领域助手，可以回答关于化工文档分析、参数提取、模拟软件使用等问题。",
-            provider=request.provider
+            provider=request.provider,
+            enable_thinking=False
         )
         
         return AgentResponse(
@@ -288,7 +291,8 @@ class AgentService:
         try:
             result = await self.llm.chat_json(
                 prompt,
-                temperature=0.3
+                temperature=0.3,
+                enable_thinking=False
             )
             return result
         except Exception as e:

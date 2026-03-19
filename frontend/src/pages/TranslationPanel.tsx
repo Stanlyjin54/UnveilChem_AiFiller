@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Card, Input, Button, Select, Spin, Space, Divider, Alert, Typography, Upload, message } from 'antd'
-import { TranslationOutlined, UploadOutlined, SwapOutlined, ClearOutlined, DownloadOutlined, CopyOutlined } from '@ant-design/icons'
+import { Card, Input, Button, Select, Spin, Space, Divider, Alert, Typography, Upload, message, Progress } from 'antd'
+import { TranslationOutlined, UploadOutlined, SwapOutlined, ClearOutlined, DownloadOutlined, CopyOutlined, FileWordOutlined } from '@ant-design/icons'
 import { translationAPI, TranslateRequest } from '../services/agentApi'
 
 const { TextArea } = Input
@@ -34,6 +34,9 @@ const TranslationPanel: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [pdfUploading, setPdfUploading] = useState(false)
+  const [pdfProgress, setPdfProgress] = useState(0)
+  const [translatedWordFile, setTranslatedWordFile] = useState<{ output_file: string; filename: string } | null>(null)
 
   const handleTranslate = async () => {
     if (!sourceText.trim()) {
@@ -81,6 +84,43 @@ const TranslationPanel: React.FC = () => {
     }
 
     return false
+  }
+
+  const handlePdfToWordUpload = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      message.warning('请上传 PDF 文件')
+      return false
+    }
+
+    setPdfUploading(true)
+    setPdfProgress(0)
+    setError(null)
+    setTranslatedWordFile(null)
+
+    try {
+      const result = await translationAPI.translatePdfToWord(file, sourceLang, targetLang)
+      setTranslatedWordFile(result)
+      message.success('PDF 翻译完成，已生成 Word 文档')
+    } catch (err: any) {
+      setError(err.unifiedMessage || 'PDF 翻译失败')
+    } finally {
+      setPdfUploading(false)
+    }
+
+    return false
+  }
+
+  const handleDownloadWord = () => {
+    if (translatedWordFile) {
+      const link = document.createElement('a')
+      link.href = `http://localhost:8001/api/translation/files/download?path=${encodeURIComponent(translatedWordFile.output_file)}`
+      link.download = translatedWordFile.filename
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      message.success('开始下载 Word 文档')
+    }
   }
 
   const handleSwap = () => {
@@ -236,6 +276,68 @@ const TranslationPanel: React.FC = () => {
             <div><Text type="secondary">正在翻译文档...</Text></div>
           </div>
         )}
+      </Card>
+
+      <Card
+        title={<Space><FileWordOutlined />PDF → Word 翻译</Space>}
+        style={{ marginTop: 16 }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space>
+            <Text>源语言：</Text>
+            <Select
+              value={sourceLang}
+              onChange={setSourceLang}
+              style={{ width: 150 }}
+              options={[{ value: 'en', label: '英文' }, { value: 'zh', label: '中文' }]}
+            />
+            <Text>目标语言：</Text>
+            <Select
+              value={targetLang}
+              onChange={setTargetLang}
+              style={{ width: 150 }}
+              options={languages.filter(l => l.value !== 'auto')}
+            />
+          </Space>
+          
+          <Dragger
+            accept=".pdf"
+            beforeUpload={handlePdfToWordUpload}
+            showUploadList={false}
+            disabled={pdfUploading}
+          >
+            <p className="ant-upload-drag-icon">
+              <UploadOutlined />
+            </p>
+            <p className="ant-upload-text">点击或拖拽 PDF 文件到此区域</p>
+            <p className="ant-upload-hint">
+              PDF 文件将转换为 Word 文档并翻译，保留原格式
+            </p>
+          </Dragger>
+          
+          {pdfUploading && (
+            <div style={{ marginTop: 16 }}>
+              <Progress percent={pdfProgress} status="active" />
+              <div style={{ textAlign: 'center', marginTop: 8 }}>
+                <Spin />
+                <Text type="secondary">正在翻译 PDF → Word...</Text>
+              </div>
+            </div>
+          )}
+          
+          {translatedWordFile && (
+            <Space style={{ marginTop: 16, width: '100%' }}>
+              <Button
+                type="primary"
+                icon={<FileWordOutlined />}
+                onClick={handleDownloadWord}
+                block
+              >
+                下载翻译后的 Word 文档
+              </Button>
+            </Space>
+          )}
+        </Space>
       </Card>
 
       <Card

@@ -26,6 +26,8 @@ try:
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
+    Image = None
+    ImageEnhance = None
     logging.warning("OCR依赖缺失,请安装pillow, pytesseract")
 
 from . import BaseDocumentParser
@@ -38,8 +40,11 @@ class WordParser(BaseDocumentParser):
         self.supported_extensions = ['.docx', '.doc']
         self.parser_name = "WORD_PARSER_V1"
     
-    def _enhance_image_for_ocr(self, image: Image.Image) -> Image.Image:
+    def _enhance_image_for_ocr(self, image) -> object:
         """增强图像以提高OCR识别率"""
+        if ImageEnhance is None:
+            return image
+        
         # 转换为灰度
         if image.mode != 'L':
             image = image.convert('L')
@@ -105,15 +110,15 @@ class WordParser(BaseDocumentParser):
                     image_part = rel.target_part
                     image_bytes = image_part.blob
                     
-                    # 将图片字节转换为PIL Image
-                    image = Image.open(io.BytesIO(image_bytes))
-                    
-                    # 增强图像以提高OCR识别率
-                    enhanced_image = self._enhance_image_for_ocr(image)
-                    
                     # 进行OCR识别
-                    if OCR_AVAILABLE:
+                    if OCR_AVAILABLE and Image is not None:
                         try:
+                            # 将图片字节转换为PIL Image
+                            image = Image.open(io.BytesIO(image_bytes))
+                            
+                            # 增强图像以提高OCR识别率
+                            enhanced_image = self._enhance_image_for_ocr(image)
+                            
                             ocr_text = pytesseract.image_to_string(enhanced_image, lang='chi_sim+eng')
                             if ocr_text.strip():
                                 image_texts.append(f"=== 图片{image_count} (OCR) ===\n{ocr_text}")

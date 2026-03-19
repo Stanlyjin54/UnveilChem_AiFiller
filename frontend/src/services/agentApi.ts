@@ -104,6 +104,24 @@ export const translationAPI = {
     return response.data.data
   },
 
+  translatePdfToWord: async (
+    file: File,
+    sourceLang: string = 'en',
+    targetLang: string = 'zh'
+  ): Promise<{ output_file: string; filename: string; message: string }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('source_lang', sourceLang)
+    formData.append('target_lang', targetLang)
+
+    const response = await api.post('/translation/pdf-to-word', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data.data
+  },
+
   getLanguages: async () => {
     const response = await api.get('/translation/languages')
     return response.data.data

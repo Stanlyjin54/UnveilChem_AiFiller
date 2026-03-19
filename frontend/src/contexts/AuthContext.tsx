@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       console.error('登录失败:', error)
       console.error('错误详情:', error.response?.data)
-      message.error(error.response?.data?.detail || '登录失败')
+      message.error(error.unifiedMessage || '登录失败')
       return false
     }
   }
@@ -101,7 +101,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       message.success('注册成功，请登录')
       return true
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '注册失败')
+      message.error(error.unifiedMessage || '注册失败')
       return false
     }
   }

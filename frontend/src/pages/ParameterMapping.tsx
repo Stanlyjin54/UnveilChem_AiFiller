@@ -108,7 +108,7 @@ const ParameterMapping: React.FC = () => {
       const response = await api.get('/automation/parameter-mappings')
       setMappings(response.data.mappings || [])
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '获取映射列表失败')
+      message.error(error.unifiedMessage || '获取映射列表失败')
     } finally {
       setLoading(false)
     }
@@ -128,7 +128,7 @@ const ParameterMapping: React.FC = () => {
         setSoftwareList(softwareInfo)
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '获取软件列表失败')
+      message.error(error.unifiedMessage || '获取软件列表失败')
     }
   }
 
@@ -176,7 +176,7 @@ const ParameterMapping: React.FC = () => {
       setModalVisible(false)
       fetchMappings()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '保存映射失败')
+      message.error(error.unifiedMessage || '保存映射失败')
     }
   }
 
@@ -187,7 +187,7 @@ const ParameterMapping: React.FC = () => {
       message.success('映射删除成功')
       fetchMappings()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '删除映射失败')
+      message.error(error.unifiedMessage || '删除映射失败')
     }
   }
 
@@ -198,7 +198,7 @@ const ParameterMapping: React.FC = () => {
       message.success(`映射已${enabled ? '启用' : '禁用'}`)
       fetchMappings()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '切换状态失败')
+      message.error(error.unifiedMessage || '切换状态失败')
     }
   }
 
@@ -291,7 +291,7 @@ const ParameterMapping: React.FC = () => {
       setTemplateModalVisible(false)
       fetchMappings()
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '应用模板失败')
+      message.error(error.unifiedMessage || '应用模板失败')
     }
   }
 

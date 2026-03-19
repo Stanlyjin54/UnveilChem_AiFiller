@@ -49,7 +49,7 @@ const ImageAnalyzer: React.FC = () => {
       setResults(response.data)
       message.success('图片分析完成')
     } catch (error: any) {
-      message.error(error.response?.data?.detail || '分析失败')
+      message.error(error.unifiedMessage || '分析失败')
     } finally {
       setAnalyzing(false)
     }

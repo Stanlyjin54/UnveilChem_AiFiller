@@ -4,7 +4,10 @@
 文档翻译服务
 """
 
-from transformers import pipeline
+import os
+
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 from typing import Dict, Any, Optional
 
 class TranslationService:
@@ -47,6 +50,7 @@ class TranslationService:
         except Exception as e:
             print(f"Hugging Face翻译模型加载失败: {e}")
             print("将使用术语词典进行简单翻译")
+            self.translator = None
             self._model_loaded = True
     
     def translate(self, text: str, source_lang: str = "en", target_lang: str = "zh") -> str:

@@ -15,6 +15,8 @@ try:
     TESSERACT_AVAILABLE = True
 except ImportError:
     TESSERACT_AVAILABLE = False
+    Image = None
+    ImageEnhance = None
     logging.warning("Tesseract依赖缺失,请安装pillow, pytesseract")
 
 # 导入PaddleOCR
@@ -168,8 +170,11 @@ class ImageParser(BaseDocumentParser):
         
         return result
     
-    def _enhance_image_for_ocr(self, image: Image.Image) -> Image.Image:
+    def _enhance_image_for_ocr(self, image) -> object:
         """增强图像以提高OCR识别率"""
+        if ImageEnhance is None:
+            return image
+        
         # 转换为灰度
         if image.mode != 'L':
             image = image.convert('L')
