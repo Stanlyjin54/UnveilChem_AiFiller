@@ -4,7 +4,7 @@ const api = axios.create({
   baseURL: '/api',
   timeout: 1800000,
   headers: {
-    'Content-Type': 'application/json',
+    // 不设置默认 Content-Type，让 axios 根据请求类型自动设置
   },
 })
 

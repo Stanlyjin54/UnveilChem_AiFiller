@@ -13,6 +13,29 @@ try:
     from PIL import Image, ImageEnhance
     import pytesseract
     TESSERACT_AVAILABLE = True
+    
+    # 自动检测 Tesseract 路径
+    import shutil
+    tesseract_cmd = shutil.which('tesseract')
+    if not tesseract_cmd:
+        # 尝试常见安装路径
+        possible_paths = [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            r"C:\Users\{}\AppData\Local\Programs\Tesseract-OCR\tesseract.exe".format(Path.home().name),
+        ]
+        for path in possible_paths:
+            if Path(path).exists():
+                tesseract_cmd = path
+                pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+                logging.info(f"找到 Tesseract: {tesseract_cmd}")
+                break
+    elif tesseract_cmd:
+        logging.info(f"使用系统 Tesseract: {tesseract_cmd}")
+    else:
+        logging.warning("未找到 Tesseract 可执行文件")
+        TESSERACT_AVAILABLE = False
+        
 except ImportError:
     TESSERACT_AVAILABLE = False
     Image = None
@@ -36,14 +59,14 @@ class ImageParser(BaseDocumentParser):
         super().__init__()
         self.supported_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
         self.parser_name = "IMAGE_PARSER_V1"
-        self.resource_level = "medium"  # 设置资源等级
+        self.resource_level = "low"  # 设置资源等级（改为low，对所有版本开放）
         
-        # 初始化PaddleOCR
+        # 初始化PaddleOCR - 支持中英文混合识别
         self.ocr = None
         if PADDLEOCR_AVAILABLE:
             try:
-                self.ocr = PaddleOCR(use_angle_cls=True, lang='ch')
-                logging.info("PaddleOCR初始化成功")
+                self.ocr = PaddleOCR(use_angle_cls=True)
+                logging.info("PaddleOCR初始化成功（支持中英文混合识别）")
             except Exception as e:
                 logging.warning(f"PaddleOCR初始化失败: {e}")
                 self.ocr = None
@@ -131,6 +154,9 @@ class ImageParser(BaseDocumentParser):
             result["text_content"] = "\n".join(all_text)
             result["success"] = True
             
+            logging.info(f"OCR提取成功，文本长度: {len(result['text_content'])}")
+            logging.info(f"OCR提取文本: {result['text_content'][:200] if len(result['text_content']) > 200 else result['text_content']}")
+            
         except Exception as e:
             result["errors"].append(f"PaddleOCR解析失败: {str(e)}")
             logging.error(f"PaddleOCR解析错误: {e}")
@@ -163,6 +189,9 @@ class ImageParser(BaseDocumentParser):
             if text.strip():
                 result["text_content"] = text
                 result["success"] = True
+            
+            logging.info(f"Tesseract提取成功，文本长度: {len(result['text_content'])}")
+            logging.info(f"Tesseract提取文本: {result['text_content'][:200] if len(result['text_content']) > 200 else result['text_content']}")
             
         except Exception as e:
             result["errors"].append(f"Tesseract解析失败: {str(e)}")

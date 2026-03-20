@@ -4,20 +4,29 @@ import { UploadOutlined, PictureOutlined, DownloadOutlined } from '@ant-design/i
 import type { UploadFile } from 'antd/es/upload/interface'
 import api from '../services/api'
 
+// 获取token的辅助函数
+const getToken = () => localStorage.getItem('token')
+
 const { Title, Text } = Typography
 
 interface ImageAnalysisResult {
   chemical_structures: Array<{
-    name: string
-    formula: string
+    name?: string
+    formula?: string
+    type?: string
+    description?: string
     confidence: number
-    bounding_box: [number, number, number, number]
+    coordinates?: { x: number; y: number; width: number; height: number }
+    bounding_box?: [number, number, number, number]
   }>
   process_elements: Array<{
     type: string
     description: string
     confidence: number
-    bounding_box: [number, number, number, number]
+    value?: string
+    unit?: string
+    context?: string
+    bounding_box?: [number, number, number, number]
   }>
   extracted_text: string
   image_preview_url: string
@@ -36,23 +45,94 @@ const ImageAnalyzer: React.FC = () => {
     }
 
     const formData = new FormData()
-    formData.append('file', fileList[0] as any)
+    // 获取原始 File 对象
+    const file = fileList[0].originFileObj as File
+    formData.append('file', file)
 
     setAnalyzing(true)
     try {
-      const response = await api.post('/images/analyze', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
+      const response = await api.post('/images/analyze', formData)
       
-      setResults(response.data)
+      console.log('后端返回的完整响应:', response.data)
+      console.log('分析结果:', response.data.analysis_result)
+      
+      setResults(response.data.analysis_result)
       message.success('图片分析完成')
     } catch (error: any) {
+      console.error('分析失败:', error)
       message.error(error.unifiedMessage || '分析失败')
     } finally {
       setAnalyzing(false)
     }
+  }
+
+  const handleExport = () => {
+    if (!results) {
+      message.warning('没有可导出的分析结果')
+      return
+    }
+
+    // 创建导出内容
+    let exportContent = '=== 图片分析结果 ===\n\n'
+    
+    // 添加提取文本
+    if (results.extracted_text) {
+      exportContent += '【提取文本】\n'
+      exportContent += results.extracted_text + '\n\n'
+    }
+    
+    // 添加化学结构
+    if (results.chemical_structures.length > 0) {
+      exportContent += '【化学结构识别】\n'
+      results.chemical_structures.forEach((item, index) => {
+        exportContent += `${index + 1}. ${item.name || item.type || '未知'}\n`
+        if (item.formula) {
+          exportContent += `   分子式: ${item.formula}\n`
+        }
+        if (item.description) {
+          exportContent += `   描述: ${item.description}\n`
+        }
+        exportContent += `   置信度: ${(item.confidence * 100).toFixed(1)}%\n\n`
+      })
+    }
+    
+    // 添加工艺参数
+    if (results.process_elements.length > 0) {
+      exportContent += '【工艺参数识别】\n'
+      results.process_elements.forEach((item, index) => {
+        exportContent += `${index + 1}. ${item.type}\n`
+        if (item.value) {
+          exportContent += `   值: ${item.value} ${item.unit || ''}\n`
+        }
+        if (item.description) {
+          exportContent += `   描述: ${item.description}\n`
+        }
+        if (item.context) {
+          exportContent += `   上下文: ${item.context}\n`
+        }
+        exportContent += `   置信度: ${(item.confidence * 100).toFixed(1)}%\n\n`
+      })
+    }
+    
+    // 创建并下载文件
+    const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `图片分析结果_${new Date().getTime()}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    message.success('分析结果已导出')
+  }
+
+  const handleReset = () => {
+    setFileList([])
+    setResults(null)
+    setPreviewImage('')
+    message.info('已重置')
   }
 
   const uploadProps = {
@@ -159,7 +239,7 @@ const ImageAnalyzer: React.FC = () => {
               <Space>
                 {results.image_preview_url && (
                   <Image
-                    src={results.image_preview_url}
+                    src={`${results.image_preview_url}?token=${getToken()}`}
                     alt="分析结果预览"
                     width={100}
                     height={60}
@@ -180,11 +260,21 @@ const ImageAnalyzer: React.FC = () => {
                     renderItem={(item) => (
                       <List.Item>
                         <Card size="small">
-                          <Text strong>{item.name}</Text>
-                          <br />
-                          <Text code style={{ fontSize: '16px', color: '#1890ff' }}>
-                            {item.formula}
-                          </Text>
+                          <Text strong>{item.name || item.type || '未知'}</Text>
+                          {item.formula && (
+                            <>
+                              <br />
+                              <Text code style={{ fontSize: '16px', color: '#1890ff' }}>
+                                {item.formula}
+                              </Text>
+                            </>
+                          )}
+                          {item.description && (
+                            <>
+                              <br />
+                              <Text type="secondary">{item.description}</Text>
+                            </>
+                          )}
                           <br />
                           <Tag color="green">化学结构</Tag>
                           <Text type="secondary">置信度: {(item.confidence * 100).toFixed(1)}%</Text>
@@ -206,8 +296,26 @@ const ImageAnalyzer: React.FC = () => {
                       <List.Item>
                         <Card size="small">
                           <Text strong>{item.type}</Text>
-                          <br />
-                          <Text type="secondary">{item.description}</Text>
+                          {item.value && (
+                            <>
+                              <br />
+                              <Text code>{item.value} {item.unit || ''}</Text>
+                            </>
+                          )}
+                          {item.description && (
+                            <>
+                              <br />
+                              <Text type="secondary">{item.description}</Text>
+                            </>
+                          )}
+                          {item.context && (
+                            <>
+                              <br />
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                {item.context}
+                              </Text>
+                            </>
+                          )}
                           <br />
                           <Tag color="orange">工艺元素</Tag>
                           <Text type="secondary">置信度: {(item.confidence * 100).toFixed(1)}%</Text>
@@ -229,10 +337,14 @@ const ImageAnalyzer: React.FC = () => {
               )}
 
               <Space>
-                <Button type="primary" icon={<DownloadOutlined />}>
+                <Button 
+                  type="primary" 
+                  icon={<DownloadOutlined />}
+                  onClick={handleExport}
+                >
                   导出分析结果
                 </Button>
-                <Button>
+                <Button onClick={handleReset}>
                   重新分析
                 </Button>
               </Space>

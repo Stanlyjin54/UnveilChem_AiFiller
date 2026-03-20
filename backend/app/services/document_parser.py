@@ -135,15 +135,28 @@ class DocumentParser:
             if "process_parameters" in parse_result and isinstance(parse_result["process_parameters"], list):
                 standardized["process_parameters"] = parse_result["process_parameters"]
             elif "parameters" in parse_result and isinstance(parse_result["parameters"], dict):
-                # 转换字典格式为数组格式
-                for name, value in parse_result["parameters"].items():
-                    standardized["process_parameters"].append({
-                        "name": name,
-                        "value": str(value),
-                        "unit": "",
-                        "confidence": 0.8,
-                        "original_text": f"{name}: {value}"
-                    })
+                # 转换字典格式为数组格式（image_parser 返回的格式）
+                for param_type, values in parse_result["parameters"].items():
+                    if isinstance(values, list):
+                        for value_info in values:
+                            if isinstance(value_info, dict):
+                                standardized["process_parameters"].append({
+                                    "name": param_type,
+                                    "value": str(value_info.get("value", "")),
+                                    "unit": value_info.get("unit", ""),
+                                    "confidence": value_info.get("confidence", 0.8),
+                                    "context": value_info.get("context", ""),
+                                    "original_text": value_info.get("original_text", "")
+                                })
+                    else:
+                        # 兼容旧格式（单个值）
+                        standardized["process_parameters"].append({
+                            "name": param_type,
+                            "value": str(values),
+                            "unit": "",
+                            "confidence": 0.8,
+                            "original_text": f"{param_type}: {values}"
+                        })
             elif "parameters" in parse_result and isinstance(parse_result["parameters"], list):
                 standardized["process_parameters"] = parse_result["parameters"]
             

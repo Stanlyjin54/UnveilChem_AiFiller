@@ -5,15 +5,19 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import os
+import logging
 from pathlib import Path
 
 from ..database import get_db
 from ..models.user import User
 from ..utils.auth import oauth2_scheme, verify_token
 from ..services.document_parser import DocumentParser
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 parser = DocumentParser()
@@ -76,35 +80,115 @@ async def upload_image(
 
 @router.post("/analyze")
 async def analyze_image(
-    file_path: str,
+    file: UploadFile = File(...),
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    """分析已上传的图片"""
+    """分析上传的图片"""
     # 验证用户
     username = verify_token(token)
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
     
-    # 检查文件是否存在
-    if not Path(file_path).exists():
-        raise HTTPException(status_code=404, detail="文件不存在")
+    # 检查文件类型
+    file_ext = Path(file.filename).suffix.lower()
+    allowed_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
+    
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"不支持的图片格式: {file_ext}"
+        )
+    
+    # 保存文件
+    upload_dir = Path("uploads/images")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_path = upload_dir / f"{user.id}_{file.filename}"
     
     try:
+        # 保存文件
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
         # 解析图片
-        result = parser.parse_document(file_path)
+        result = parser.parse_document(str(file_path))
+        
+        logger.info(f"图片解析结果: success={result.get('success')}, text_length={len(result.get('extracted_text', ''))}")
+        logger.info(f"图片解析参数: {result.get('process_parameters', {})}")
+        
+        # 标准化返回格式以匹配前端期望
+        standardized_result = {
+            "chemical_structures": result.get("chemical_entities", []),
+            "process_elements": result.get("process_parameters", []),
+            "extracted_text": result.get("extracted_text", ""),
+            "image_preview_url": f"/api/images/preview/{user.id}_{file.filename}"
+        }
+        
+        logger.info(f"标准化结果: chemical_structures={len(standardized_result['chemical_structures'])}, process_elements={len(standardized_result['process_elements'])}, extracted_text_length={len(standardized_result['extracted_text'])}")
         
         return {
             "success": True,
-            "analysis_result": result
+            "message": "图片分析完成",
+            "file_path": str(file_path),
+            "file_name": file.filename,
+            "analysis_result": standardized_result
         }
         
     except Exception as e:
+        # 删除上传的文件
+        if file_path.exists():
+            file_path.unlink()
+        
         raise HTTPException(
             status_code=500, 
             detail=f"图片分析失败: {str(e)}"
         )
+
+@router.get("/preview/{filename}")
+async def preview_image(
+    filename: str,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """预览上传的图片 - 支持通过URL参数传递token"""
+    # 验证用户（如果提供了token）
+    user = None
+    if token:
+        try:
+            username = verify_token(token)
+            user = db.query(User).filter(User.username == username).first()
+        except Exception:
+            pass  # token验证失败，继续检查文件权限
+    
+    # 构建文件路径
+    file_path = Path("uploads/images") / filename
+    
+    # 检查文件是否存在
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    # 检查文件权限（如果用户已验证）
+    if user and not filename.startswith(f"{user.id}_"):
+        raise HTTPException(status_code=403, detail="无权访问该文件")
+    
+    # 确定媒体类型
+    media_type = "image/jpeg"
+    if filename.lower().endswith('.png'):
+        media_type = "image/png"
+    elif filename.lower().endswith('.gif'):
+        media_type = "image/gif"
+    elif filename.lower().endswith('.bmp'):
+        media_type = "image/bmp"
+    
+    # 返回文件
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        filename=filename
+    )
 
 @router.post("/chemical-structure")
 async def detect_chemical_structure(
