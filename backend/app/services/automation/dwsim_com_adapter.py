@@ -444,17 +444,52 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     
     # ==================== 对象管理 ====================
     
-    def add_object(self, object_type: int, x: int, y: int, name: str, flowsheet: Any = None) -> Any:
-        """添加任意类型对象（通用方法）"""
+    def add_object(self, object_type, x: int, y: int, name: str, flowsheet: Any = None) -> Any:
+        """
+        添加任意类型对象（通用方法）
+        
+        Args:
+            object_type: 对象类型（可以是 int 或 DWSIMObjectType 枚举）
+            x: X坐标位置
+            y: Y坐标位置
+            name: 对象名称
+            flowsheet: 流程图对象（可选）
+        
+        Returns:
+            添加的对象，失败返回 None
+        """
         try:
             fs = flowsheet or self.flowsheet
             if not fs:
                 logger.error("没有流程图")
                 return None
             
-            obj = fs.AddFlowsheetObject(object_type, x, y, name)
-            logger.info(f"添加对象: {name} (类型: {object_type})")
-            return obj
+            if isinstance(object_type, int):
+                dwsim_obj_type = self.DWSIMObjectType(object_type)
+            else:
+                dwsim_obj_type = object_type
+            
+            try:
+                obj = fs.AddObject(dwsim_obj_type, x, y, name)
+                logger.info(f"添加对象成功: {name} (类型: {dwsim_obj_type})")
+                return obj
+            except Exception as e1:
+                logger.warning(f"AddObject 失败: {e1}，尝试其他方法")
+                
+                try:
+                    obj = fs.AddSimulationObject(dwsim_obj_type, name, x, y)
+                    logger.info(f"添加对象(AddSimulationObject): {name}")
+                    return obj
+                except Exception as e2:
+                    logger.warning(f"AddSimulationObject 失败: {e2}")
+                    
+                    try:
+                        obj = fs.AddFlowsheetObject(dwsim_obj_type, x, y, name)
+                        logger.info(f"添加对象(AddFlowsheetObject): {name}")
+                        return obj
+                    except Exception as e3:
+                        logger.error(f"所有添加对象方法都失败: {e3}")
+                        return None
             
         except Exception as e:
             logger.error(f"添加对象失败: {e}")
@@ -466,11 +501,10 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
                            flowsheet: Any = None) -> Any:
         """添加物料流"""
         try:
-            obj = self.add_object(ObjectType.MATERIAL_STREAM.value, x, y, name, flowsheet)
+            obj = self.add_object(self.DWSIMObjectType.MaterialStream, x, y, name, flowsheet)
             if not obj:
                 return None
             
-            # 设置参数
             if temperature is not None:
                 self.set_object_property(name, "Temperature", temperature, flowsheet)
             if pressure is not None:
@@ -490,7 +524,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_pump(self, name: str, x: int = 200, y: int = 100, 
                  parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加泵"""
-        obj = self.add_object(ObjectType.PUMP.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.Pump, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
@@ -500,7 +534,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_compressor(self, name: str, x: int = 200, y: int = 100,
                        parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加压缩机"""
-        obj = self.add_object(ObjectType.COMPRESSOR.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.Compressor, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
@@ -510,7 +544,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_heater(self, name: str, x: int = 200, y: int = 100,
                    parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加加热器"""
-        obj = self.add_object(ObjectType.HEATER.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.Heater, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
@@ -520,7 +554,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_cooler(self, name: str, x: int = 200, y: int = 100,
                    parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加冷却器"""
-        obj = self.add_object(ObjectType.COOLER.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.Cooler, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
@@ -530,7 +564,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_valve(self, name: str, x: int = 200, y: int = 100,
                   parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加阀门"""
-        obj = self.add_object(ObjectType.VALVE.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.Valve, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
@@ -540,7 +574,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_mixer(self, name: str, x: int = 200, y: int = 100,
                   parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加混合器"""
-        obj = self.add_object(ObjectType.MIXER.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.Mixer, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
@@ -550,7 +584,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_splitter(self, name: str, x: int = 200, y: int = 100,
                      parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加分流器"""
-        obj = self.add_object(ObjectType.SPLITTER.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.Splitter, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
@@ -560,7 +594,7 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     def add_heat_exchanger(self, name: str, x: int = 200, y: int = 100,
                            parameters: Dict[str, Any] = None, flowsheet: Any = None) -> Any:
         """添加换热器"""
-        obj = self.add_object(ObjectType.HEAT_EXCHANGER.value, x, y, name, flowsheet)
+        obj = self.add_object(self.DWSIMObjectType.HeatExchanger, x, y, name, flowsheet)
         if obj and parameters:
             self._set_equipment_parameters(obj, parameters)
         if obj:
