@@ -483,6 +483,259 @@ class AgentEngine:
                     "message": "报告创建成功" if success else "报告创建失败"
                 }
 
+            # DWSIM 新增操作
+            elif action_name == "create_flowsheet":
+                if hasattr(adapter, 'create_flowsheet'):
+                    fs = adapter.create_flowsheet()
+                    return {
+                        "success": fs is not None,
+                        "message": "流程图创建成功" if fs else "流程图创建失败",
+                        "output": {}
+                    }
+                return None
+
+            elif action_name == "add_compounds" or action_name == "add_compound":
+                if hasattr(adapter, 'add_compounds'):
+                    compound_names = parameters.get("compound_names", parameters.get("compounds", []))
+                    count = adapter.add_compounds(compound_names)
+                    return {
+                        "success": count > 0,
+                        "message": f"成功添加 {count} 个化合物",
+                        "output": {"compounds_added": count}
+                    }
+                elif hasattr(adapter, 'add_compound'):
+                    compound_name = parameters.get("compound_name") or parameters.get("compound_names", [None])[0]
+                    if compound_name:
+                        success = adapter.add_compound(compound_name)
+                        return {
+                            "success": success,
+                            "message": f"添加化合物 {compound_name} {'成功' if success else '失败'}",
+                            "output": {"compound": compound_name}
+                        }
+                return None
+
+            elif action_name == "create_and_add_property_package":
+                if hasattr(adapter, 'create_and_add_property_package'):
+                    package_name = parameters.get("package_name", "Peng-Robinson (PR)")
+                    result = adapter.create_and_add_property_package(package_name)
+                    return {
+                        "success": result is not None,
+                        "message": f"物性包 {package_name} 添加{'成功' if result else '失败'}",
+                        "output": {"property_package": package_name}
+                    }
+                return None
+
+            elif action_name == "add_material_stream":
+                if hasattr(adapter, 'add_material_stream'):
+                    stream = adapter.add_material_stream(**parameters)
+                    return {
+                        "success": stream is not None,
+                        "message": f"物料流 {parameters.get('name')} 添加{'成功' if stream else '失败'}",
+                        "output": {"stream_name": parameters.get('name')}
+                    }
+                return None
+
+            elif action_name.startswith("add_") and action_name not in ["add_compounds", "add_compound", "add_property_package", "add_material_stream", "add_reaction", "add_reaction_to_set"]:
+                # 通用设备添加方法
+                equipment_type = action_name.replace("add_", "")
+                add_method = getattr(adapter, action_name, None)
+                if add_method and callable(add_method):
+                    obj = add_method(**parameters)
+                    return {
+                        "success": obj is not None,
+                        "message": f"{equipment_type} {parameters.get('name')} 添加{'成功' if obj else '失败'}",
+                        "output": {"equipment_name": parameters.get('name'), "type": equipment_type}
+                    }
+                return None
+
+            elif action_name == "connect_objects":
+                if hasattr(adapter, 'connect_objects'):
+                    success = adapter.connect_objects(
+                        parameters.get("from_object"),
+                        parameters.get("to_object"),
+                        parameters.get("from_port", 0),
+                        parameters.get("to_port", 0)
+                    )
+                    return {
+                        "success": success,
+                        "message": f"连接 {parameters.get('from_object')} -> {parameters.get('to_object')} {'成功' if success else '失败'}",
+                        "output": {}
+                    }
+                return None
+
+            elif action_name == "disconnect_objects":
+                if hasattr(adapter, 'disconnect_objects'):
+                    success = adapter.disconnect_objects(
+                        parameters.get("from_object"),
+                        parameters.get("to_object")
+                    )
+                    return {
+                        "success": success,
+                        "message": f"断开连接 {'成功' if success else '失败'}",
+                        "output": {}
+                    }
+                return None
+
+            elif action_name == "set_object_property":
+                if hasattr(adapter, 'set_object_property'):
+                    success = adapter.set_object_property(
+                        parameters.get("object_name"),
+                        parameters.get("property_name"),
+                        parameters.get("value")
+                    )
+                    return {
+                        "success": success,
+                        "message": f"设置属性 {'成功' if success else '失败'}",
+                        "output": {}
+                    }
+                return None
+
+            elif action_name == "get_object_property":
+                if hasattr(adapter, 'get_object_property'):
+                    value = adapter.get_object_property(
+                        parameters.get("object_name"),
+                        parameters.get("property_name")
+                    )
+                    return {
+                        "success": value is not None,
+                        "message": "获取属性成功",
+                        "output": {"value": value}
+                    }
+                return None
+
+            elif action_name == "get_stream_results":
+                if hasattr(adapter, 'get_stream_results'):
+                    results = adapter.get_stream_results(
+                        parameters.get("stream_name"),
+                        parameters.get("properties")
+                    )
+                    return {
+                        "success": bool(results),
+                        "message": "获取物料流结果成功",
+                        "output": results
+                    }
+                return None
+
+            elif action_name == "get_equipment_results":
+                if hasattr(adapter, 'get_equipment_results'):
+                    results = adapter.get_equipment_results(
+                        parameters.get("equipment_name"),
+                        parameters.get("properties")
+                    )
+                    return {
+                        "success": bool(results),
+                        "message": "获取设备结果成功",
+                        "output": results
+                    }
+                return None
+
+            elif action_name == "sensitivity_analysis":
+                if hasattr(adapter, 'sensitivity_analysis'):
+                    results = adapter.sensitivity_analysis(
+                        parameters.get("variable_object"),
+                        parameters.get("variable_property"),
+                        parameters.get("variable_range"),
+                        parameters.get("objective_object"),
+                        parameters.get("objective_property")
+                    )
+                    return {
+                        "success": bool(results),
+                        "message": f"灵敏度分析完成，共 {len(results)} 个点",
+                        "output": {"results": results}
+                    }
+                return None
+
+            elif action_name == "optimize_single_parameter" or action_name == "optimize":
+                if hasattr(adapter, 'optimize_single_parameter'):
+                    result = adapter.optimize_single_parameter(
+                        parameters.get("param_object"),
+                        parameters.get("param_property"),
+                        parameters.get("objective_object"),
+                        parameters.get("objective_property"),
+                        parameters.get("bounds")
+                    )
+                    return {
+                        "success": result.get("success", False),
+                        "message": "优化完成" if result.get("success") else "优化失败",
+                        "output": result
+                    }
+                return None
+
+            elif action_name == "multi_objective_optimization":
+                if hasattr(adapter, 'multi_objective_optimization'):
+                    result = adapter.multi_objective_optimization(
+                        parameters.get("objectives", []),
+                        parameters.get("bounds", []),
+                        parameters.get("population_size", 100),
+                        parameters.get("generations", 50)
+                    )
+                    return {
+                        "success": result.get("success", False),
+                        "message": "多目标优化完成" if result.get("success") else result.get("message", "优化失败"),
+                        "output": result
+                    }
+                return None
+
+            elif action_name == "auto_layout":
+                if hasattr(adapter, 'auto_layout'):
+                    success = adapter.auto_layout()
+                    return {
+                        "success": success,
+                        "message": "自动布局完成" if success else "自动布局失败",
+                        "output": {}
+                    }
+                return None
+
+            elif action_name == "save_flowsheet":
+                if hasattr(adapter, 'save_flowsheet'):
+                    success = adapter.save_flowsheet(parameters.get("file_path"))
+                    return {
+                        "success": success,
+                        "message": "保存流程图成功" if success else "保存流程图失败",
+                        "output": {"file_path": parameters.get("file_path")}
+                    }
+                return None
+
+            elif action_name == "load_flowsheet":
+                if hasattr(adapter, 'load_flowsheet'):
+                    fs = adapter.load_flowsheet(parameters.get("file_path"))
+                    return {
+                        "success": fs is not None,
+                        "message": "加载流程图成功" if fs else "加载流程图失败",
+                        "output": {"file_path": parameters.get("file_path")}
+                    }
+                return None
+
+            elif action_name == "get_version":
+                if hasattr(adapter, 'get_version'):
+                    version = adapter.get_version()
+                    return {
+                        "success": True,
+                        "message": "获取版本成功",
+                        "output": {"version": version}
+                    }
+                return None
+
+            elif action_name == "get_available_compounds":
+                if hasattr(adapter, 'get_available_compounds'):
+                    compounds = adapter.get_available_compounds()
+                    return {
+                        "success": True,
+                        "message": f"获取到 {len(compounds)} 个可用化合物",
+                        "output": {"compounds": compounds[:100]}  # 限制返回数量
+                    }
+                return None
+
+            elif action_name == "get_available_property_packages":
+                if hasattr(adapter, 'get_available_property_packages'):
+                    packages = adapter.get_available_property_packages()
+                    return {
+                        "success": True,
+                        "message": f"获取到 {len(packages)} 个可用物性包",
+                        "output": {"property_packages": packages}
+                    }
+                return None
+
             else:
                 logger.warning(f"未知操作: {action_name}")
                 return None

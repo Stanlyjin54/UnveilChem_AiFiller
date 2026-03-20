@@ -64,21 +64,215 @@ class SkillRegistry:
     def _register_default_skills(self):
         """注册默认 Skills"""
         default_skills = [
-            # DWSIM Skill
+            # DWSIM Skill - 完整版
             Skill(
                 name="dwsim",
                 display_name="DWSIM",
-                keywords=["dwsim", "模拟", "流程模拟", "化工仿真", "精馏", "吸收", "反应", "换热", "加热", "冷却"],
-                description="DWSIM 化工流程模拟软件自动化（COM 接口）",
+                keywords=[
+                    "dwsim", "模拟", "流程模拟", "化工仿真", "精馏", "吸收", "反应", "换热", "加热", "冷却",
+                    "泵", "压缩机", "阀门", "混合器", "分流器", "反应器", "闪蒸", "塔", "灵敏度分析", "优化"
+                ],
+                description="DWSIM 化工流程模拟软件自动化（COM/pythonnet 接口），支持流程图创建、仿真计算、灵敏度分析和优化",
                 category=SkillCategory.SIMULATION,
                 software_type="dwsim",
+                version="2.0.0",
                 actions=[
+                    # 连接管理
                     SkillAction(
                         name="connect",
-                        description="连接到 DWSIM",
+                        description="连接到 DWSIM Automation3 接口",
                         required_params=[],
-                        optional_params=["dwsim_path"]
+                        optional_params=["dwsim_path"],
+                        example="connect(dwsim_path='C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\DWSIM')"
                     ),
+                    SkillAction(
+                        name="disconnect",
+                        description="断开与 DWSIM 的连接并释放资源",
+                        required_params=[],
+                        optional_params=[]
+                    ),
+                    SkillAction(
+                        name="get_version",
+                        description="获取 DWSIM 版本信息",
+                        required_params=[],
+                        optional_params=[]
+                    ),
+                    # 流程图管理
+                    SkillAction(
+                        name="create_flowsheet",
+                        description="创建新的流程图",
+                        required_params=[],
+                        optional_params=["name"]
+                    ),
+                    SkillAction(
+                        name="load_flowsheet",
+                        description="从文件加载流程图",
+                        required_params=["file_path"],
+                        optional_params=[]
+                    ),
+                    SkillAction(
+                        name="save_flowsheet",
+                        description="保存流程图到文件",
+                        required_params=["file_path"],
+                        optional_params=["flowsheet"]
+                    ),
+                    SkillAction(
+                        name="auto_layout",
+                        description="自动排列流程图中的对象",
+                        required_params=[],
+                        optional_params=["flowsheet"]
+                    ),
+                    # 化合物管理
+                    SkillAction(
+                        name="add_compound",
+                        description="添加化合物到流程图",
+                        required_params=["compound_name"],
+                        optional_params=["flowsheet"],
+                        example="add_compound(compound_name='Water')"
+                    ),
+                    SkillAction(
+                        name="add_compounds",
+                        description="批量添加化合物",
+                        required_params=["compound_names"],
+                        optional_params=["flowsheet"],
+                        example="add_compounds(compound_names=['Water', 'Ethanol', 'Methanol'])"
+                    ),
+                    SkillAction(
+                        name="get_available_compounds",
+                        description="获取所有可用化合物列表",
+                        required_params=[],
+                        optional_params=[]
+                    ),
+                    # 物性包管理
+                    SkillAction(
+                        name="create_property_package",
+                        description="创建物性包",
+                        required_params=["package_name"],
+                        optional_params=["flowsheet"],
+                        example="create_property_package(package_name='Peng-Robinson (PR)')"
+                    ),
+                    SkillAction(
+                        name="add_property_package",
+                        description="添加物性包到流程图",
+                        required_params=["package"],
+                        optional_params=["flowsheet"]
+                    ),
+                    SkillAction(
+                        name="create_and_add_property_package",
+                        description="创建并添加物性包（一步完成）",
+                        required_params=["package_name"],
+                        optional_params=["flowsheet"],
+                        example="create_and_add_property_package(package_name='NRTL')"
+                    ),
+                    SkillAction(
+                        name="get_available_property_packages",
+                        description="获取所有可用物性包列表",
+                        required_params=[],
+                        optional_params=[]
+                    ),
+                    # 对象管理 - 物料流
+                    SkillAction(
+                        name="add_material_stream",
+                        description="添加物料流",
+                        required_params=["name"],
+                        optional_params=["x", "y", "temperature", "pressure", "molar_flow", "composition"],
+                        example="add_material_stream(name='Feed', temperature=298.15, pressure=101325)"
+                    ),
+                    # 对象管理 - 单元操作
+                    SkillAction(
+                        name="add_pump",
+                        description="添加泵",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_compressor",
+                        description="添加压缩机",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_heater",
+                        description="添加加热器",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_cooler",
+                        description="添加冷却器",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_valve",
+                        description="添加阀门",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_mixer",
+                        description="添加混合器",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_splitter",
+                        description="添加分流器",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_heat_exchanger",
+                        description="添加换热器",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_reactor",
+                        description="添加反应器",
+                        required_params=["name"],
+                        optional_params=["x", "y", "reactor_type", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_distillation_column",
+                        description="添加精馏塔",
+                        required_params=["name"],
+                        optional_params=["x", "y", "stages", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_flash_drum",
+                        description="添加闪蒸罐",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_tank",
+                        description="添加储罐",
+                        required_params=["name"],
+                        optional_params=["x", "y", "parameters"]
+                    ),
+                    SkillAction(
+                        name="add_object",
+                        description="添加任意类型对象（通用方法）",
+                        required_params=["object_type", "name"],
+                        optional_params=["x", "y", "parameters"],
+                        example="add_object(object_type=0, name='Feed')  # 0=MaterialStream"
+                    ),
+                    # 连接管理
+                    SkillAction(
+                        name="connect_objects",
+                        description="连接两个对象",
+                        required_params=["from_object", "to_object"],
+                        optional_params=["from_port", "to_port"],
+                        example="connect_objects(from_object='Feed', to_object='Pump')"
+                    ),
+                    SkillAction(
+                        name="disconnect_objects",
+                        description="断开两个对象的连接",
+                        required_params=["from_object", "to_object"],
+                        optional_params=[]
+                    ),
+                    # 参数设置
                     SkillAction(
                         name="set_parameters",
                         description="设置仿真参数（化合物、物性包、物料流、设备）",
@@ -86,11 +280,38 @@ class SkillRegistry:
                         optional_params=["compounds", "property_package", "streams", "equipment", "connections"]
                     ),
                     SkillAction(
+                        name="set_object_property",
+                        description="设置对象属性值",
+                        required_params=["object_name", "property_name", "value"],
+                        optional_params=[],
+                        example="set_object_property(object_name='Feed', property_name='Temperature', value=350)"
+                    ),
+                    SkillAction(
+                        name="get_object_property",
+                        description="获取对象属性值",
+                        required_params=["object_name", "property_name"],
+                        optional_params=[]
+                    ),
+                    # 仿真计算
+                    SkillAction(
                         name="run_simulation",
                         description="运行仿真计算",
                         required_params=[],
-                        optional_params=[]
+                        optional_params=["flowsheet"]
                     ),
+                    SkillAction(
+                        name="check_status",
+                        description="检查计算状态",
+                        required_params=[],
+                        optional_params=["flowsheet"]
+                    ),
+                    SkillAction(
+                        name="request_calculation",
+                        description="请求计算（异步）",
+                        required_params=[],
+                        optional_params=["flowsheet"]
+                    ),
+                    # 结果获取
                     SkillAction(
                         name="get_results",
                         description="获取仿真结果",
@@ -98,28 +319,99 @@ class SkillRegistry:
                         optional_params=["stream_name", "equipment_name"]
                     ),
                     SkillAction(
-                        name="create_stream",
-                        description="创建物料流",
-                        required_params=["name"],
-                        optional_params=["temperature", "pressure", "molar_flow", "composition"]
+                        name="get_stream_results",
+                        description="获取物料流结果",
+                        required_params=["stream_name"],
+                        optional_params=["properties"],
+                        example="get_stream_results(stream_name='Product', properties=['Temperature', 'Pressure', 'MolarFlow'])"
                     ),
                     SkillAction(
-                        name="add_equipment",
-                        description="添加设备（加热器、冷却器、混合器等）",
-                        required_params=["name", "type"],
-                        optional_params=["parameters"]
+                        name="get_equipment_results",
+                        description="获取设备结果",
+                        required_params=["equipment_name"],
+                        optional_params=["properties"]
+                    ),
+                    # 反应管理
+                    SkillAction(
+                        name="create_equilibrium_reaction",
+                        description="创建平衡反应",
+                        required_params=["name"],
+                        optional_params=["reactants", "products", "equilibrium_constant"]
+                    ),
+                    SkillAction(
+                        name="create_kinetic_reaction",
+                        description="创建动力学反应",
+                        required_params=["name"],
+                        optional_params=["reactants", "products", "rate_expression"]
+                    ),
+                    SkillAction(
+                        name="create_conversion_reaction",
+                        description="创建转化反应",
+                        required_params=["name"],
+                        optional_params=["reactants", "products", "conversion"]
+                    ),
+                    SkillAction(
+                        name="create_reaction_set",
+                        description="创建反应集",
+                        required_params=["name"],
+                        optional_params=["reactions"]
+                    ),
+                    SkillAction(
+                        name="add_reaction",
+                        description="添加反应到流程图",
+                        required_params=["reaction"],
+                        optional_params=["flowsheet"]
+                    ),
+                    SkillAction(
+                        name="add_reaction_to_set",
+                        description="添加反应到反应集",
+                        required_params=["reaction", "reaction_set"],
+                        optional_params=[]
+                    ),
+                    # 高级功能
+                    SkillAction(
+                        name="sensitivity_analysis",
+                        description="执行灵敏度分析",
+                        required_params=["variable_object", "variable_property", "variable_range", "objective_object", "objective_property"],
+                        optional_params=["flowsheet"],
+                        example="sensitivity_analysis(variable_object='Feed', variable_property='Temperature', variable_range=[300, 350, 400], objective_object='Product', objective_property='MolarFlow')"
+                    ),
+                    SkillAction(
+                        name="optimize_single_parameter",
+                        description="单参数优化",
+                        required_params=["param_object", "param_property", "objective_object", "objective_property", "bounds"],
+                        optional_params=["flowsheet", "method"]
+                    ),
+                    SkillAction(
+                        name="multi_objective_optimization",
+                        description="多目标优化（使用 NSGA-II）",
+                        required_params=["objectives", "bounds"],
+                        optional_params=["flowsheet", "population_size", "generations"]
                     ),
                 ],
                 parameters={
+                    # 基本参数
                     "compounds": {"type": "list", "description": "化合物列表，如 ['Water', 'Ethanol']"},
-                    "property_package": {"type": "string", "description": "物性包，如 'Peng-Robinson (PR)'"},
+                    "property_package": {"type": "string", "description": "物性包名称", "options": ["Peng-Robinson (PR)", "Soave-Redlich-Kwong (SRK)", "NRTL", "UNIQUAC", "UNIFAC", "Wilson", "CoolProp", "Steam Tables (IAPWS-IF97)"]},
                     "streams": {"type": "list", "description": "物料流列表"},
                     "equipment": {"type": "list", "description": "设备列表"},
                     "connections": {"type": "list", "description": "物流连接列表"},
-                    "temperature": {"type": "float", "unit": "K", "range": [0, 2000]},
-                    "pressure": {"type": "float", "unit": "Pa", "range": [0, 1e8]},
-                    "molar_flow": {"type": "float", "unit": "kmol/h", "range": [0, 1e6]},
-                    "composition": {"type": "list", "description": "摩尔组成"},
+                    # 物性参数
+                    "temperature": {"type": "float", "unit": "K", "range": [0, 2000], "description": "温度"},
+                    "pressure": {"type": "float", "unit": "Pa", "range": [0, 1e8], "description": "压力"},
+                    "molar_flow": {"type": "float", "unit": "kmol/h", "range": [0, 1e6], "description": "摩尔流量"},
+                    "mass_flow": {"type": "float", "unit": "kg/h", "range": [0, 1e9], "description": "质量流量"},
+                    "composition": {"type": "list", "description": "摩尔组成，如 [0.5, 0.5]"},
+                    # 对象类型
+                    "object_type": {"type": "int", "description": "对象类型ID", "options": {"0": "MaterialStream", "1": "Pump", "2": "Compressor", "3": "Heater", "4": "Cooler", "5": "Valve", "6": "Mixer", "7": "Splitter", "8": "HeatExchanger", "9": "Reactor", "10": "DistillationColumn", "11": "AbsorptionColumn", "14": "Tank", "22": "ShortcutColumn", "23": "FlashDrum"}},
+                    # 位置参数
+                    "x": {"type": "int", "description": "X 坐标位置"},
+                    "y": {"type": "int", "description": "Y 坐标位置"},
+                    # 优化参数
+                    "bounds": {"type": "list", "description": "优化边界，如 [(300, 500), (1e5, 1e6)]"},
+                    "objectives": {"type": "list", "description": "目标函数列表"},
+                    "population_size": {"type": "int", "description": "种群大小", "default": 100},
+                    "generations": {"type": "int", "description": "迭代代数", "default": 50},
                 }
             ),
 
