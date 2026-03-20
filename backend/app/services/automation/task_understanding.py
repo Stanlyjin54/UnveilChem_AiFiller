@@ -168,7 +168,6 @@ class TaskUnderstandingService:
         """
         user_request_lower = user_request.lower()
 
-        # 1. 关键词匹配
         matched_skills = self.skill_registry.search_by_keyword(user_request_lower)
 
         if not matched_skills:
@@ -181,24 +180,23 @@ class TaskUnderstandingService:
                 "error": "无法识别任务，请尝试更详细地描述您的需求"
             }
 
-        # 2. 使用最高匹配的 Skill
         best_match = matched_skills[0]
         skill = best_match.skill
 
-        # 3. 根据关键词推断操作
+        if skill.name == "dwsim":
+            return self._generate_dwsim_fallback_plan(user_request, user_request_lower)
+
         action = "run_simulation"
         if "打开" in user_request or "加载" in user_request or "open" in user_request_lower or "读取" in user_request:
             action = "open"
         elif "设置" in user_request or "设置参数" in user_request:
             action = "set_parameters"
         elif "获取" in user_request or "结果" in user_request or "get" in user_request_lower or "读" in user_request:
-            # DWSIM 使用 get_results，其他使用 read_data
             if skill.name == "dwsim":
                 action = "get_results"
             else:
                 action = "read_data"
 
-        # 4. 构建简单计划
         return {
             "task_type": "automation",
             "required_skills": [skill.name],
@@ -214,6 +212,262 @@ class TaskUnderstandingService:
                     "description": f"使用 {skill.display_name} 执行 {action}"
                 }
             ]
+        }
+
+    def _generate_dwsim_fallback_plan(self, user_request: str, user_request_lower: str) -> Dict[str, Any]:
+        """生成DWSIM任务的降级执行计划"""
+        steps = []
+        step_id = 1
+
+        compound_keywords = {
+            "water": "Water", "水": "Water",
+            "ethanol": "Ethanol", "乙醇": "Ethanol",
+            "methanol": "Methanol", "甲醇": "Methanol",
+            "benzene": "Benzene", "苯": "Benzene",
+            "toluene": "Toluene", "甲苯": "Toluene"
+        }
+        compounds = []
+        for kw, compound in compound_keywords.items():
+            if kw in user_request_lower:
+                compounds.append(compound)
+        compounds = list(set(compounds)) if compounds else ["Water", "Ethanol"]
+
+        pp_keywords = {
+            "peng-robinson": "Peng-Robinson (PR)", "pr": "Peng-Robinson (PR)",
+            "srk": "Soave-Redlich-Kwong (SRK)", "soave": "Soave-Redlich-Kwong (SRK)",
+            "nrtl": "NRTL", "uniquac": "UNIQUAC", "unifac": "UNIFAC"
+        }
+        property_package = "Peng-Robinson (PR)"
+        for kw, pp in pp_keywords.items():
+            if kw in user_request_lower:
+                property_package = pp
+                break
+
+        equipment_keywords = {
+            "pump": "pump", "泵": "pump",
+            "compressor": "compressor", "压缩机": "compressor",
+            "heater": "heater", "加热器": "heater", "加热炉": "heater",
+            "cooler": "cooler", "冷却器": "cooler", "冷凝器": "cooler",
+            "valve": "valve", "阀门": "valve",
+            "mixer": "mixer", "混合器": "mixer",
+            "splitter": "splitter", "分流器": "splitter",
+            "heat_exchanger": "heat_exchanger", "换热器": "heat_exchanger",
+            "reactor": "reactor", "反应器": "reactor",
+            "distillation": "distillation_column", "精馏塔": "distillation_column", "蒸馏塔": "distillation_column",
+            "flash": "flash_drum", "闪蒸": "flash_drum",
+            "tank": "tank", "储罐": "tank"
+        }
+
+        is_create = any(kw in user_request_lower for kw in ["创建", "新建", "建立", "create", "new", "开始"])
+        is_run = any(kw in user_request_lower for kw in ["运行", "计算", "仿真", "run", "calculate", "solve"])
+        is_sensitivity = any(kw in user_request_lower for kw in ["灵敏度", "敏感性", "sensitivity", "sweep"])
+        is_optimization = any(kw in user_request_lower for kw in ["优化", "最优", "optimize", "optimization"])
+        is_add_equipment = any(kw in user_request_lower for kw in ["添加", "增加", "加入", "add"])
+        is_load = any(kw in user_request_lower for kw in ["加载", "打开", "读取", "load", "open"])
+        is_save = any(kw in user_request_lower for kw in ["保存", "存储", "save"])
+
+        detected_equipment = None
+        for kw, eq_type in equipment_keywords.items():
+            if kw in user_request_lower:
+                detected_equipment = eq_type
+                break
+
+        if is_load:
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "connect",
+                "parameters": {},
+                "depends_on": [],
+                "description": "连接DWSIM"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "load_flowsheet",
+                "parameters": {"request": user_request},
+                "depends_on": [step_id - 1],
+                "description": "加载流程图"
+            })
+            step_id += 1
+
+        elif is_sensitivity:
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "connect",
+                "parameters": {},
+                "depends_on": [],
+                "description": "连接DWSIM"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "sensitivity_analysis",
+                "parameters": {
+                    "variable_object": "Feed",
+                    "variable_property": "Temperature",
+                    "variable_range": [300, 350, 400],
+                    "objective_object": "Product",
+                    "objective_property": "MolarFlow"
+                },
+                "depends_on": [step_id - 1],
+                "description": "执行灵敏度分析"
+            })
+            step_id += 1
+
+        elif is_optimization:
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "connect",
+                "parameters": {},
+                "depends_on": [],
+                "description": "连接DWSIM"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "multi_objective_optimization",
+                "parameters": {
+                    "objectives": [],
+                    "bounds": []
+                },
+                "depends_on": [step_id - 1],
+                "description": "执行多目标优化"
+            })
+            step_id += 1
+
+        elif is_add_equipment and detected_equipment:
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "connect",
+                "parameters": {},
+                "depends_on": [],
+                "description": "连接DWSIM"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": f"add_{detected_equipment}",
+                "parameters": {
+                    "name": f"{detected_equipment.capitalize()}_1",
+                    "request": user_request
+                },
+                "depends_on": [step_id - 1],
+                "description": f"添加{detected_equipment}"
+            })
+            step_id += 1
+
+        elif is_create or is_run:
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "connect",
+                "parameters": {},
+                "depends_on": [],
+                "description": "连接DWSIM"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "create_flowsheet",
+                "parameters": {},
+                "depends_on": [step_id - 1],
+                "description": "创建流程图"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "add_compounds",
+                "parameters": {"compound_names": compounds},
+                "depends_on": [step_id - 1],
+                "description": f"添加化合物: {', '.join(compounds)}"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "create_and_add_property_package",
+                "parameters": {"package_name": property_package},
+                "depends_on": [step_id - 1],
+                "description": f"添加物性包: {property_package}"
+            })
+            step_id += 1
+
+            if is_run:
+                steps.append({
+                    "step_id": step_id,
+                    "skill_name": "dwsim",
+                    "action": "run_simulation",
+                    "parameters": {},
+                    "depends_on": [step_id - 1],
+                    "description": "运行仿真计算"
+                })
+                step_id += 1
+                steps.append({
+                    "step_id": step_id,
+                    "skill_name": "dwsim",
+                    "action": "get_results",
+                    "parameters": {},
+                    "depends_on": [step_id - 1],
+                    "description": "获取仿真结果"
+                })
+                step_id += 1
+
+        elif is_save:
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "connect",
+                "parameters": {},
+                "depends_on": [],
+                "description": "连接DWSIM"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "save_flowsheet",
+                "parameters": {"request": user_request},
+                "depends_on": [step_id - 1],
+                "description": "保存流程图"
+            })
+            step_id += 1
+
+        else:
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "connect",
+                "parameters": {},
+                "depends_on": [],
+                "description": "连接DWSIM"
+            })
+            step_id += 1
+            steps.append({
+                "step_id": step_id,
+                "skill_name": "dwsim",
+                "action": "run_simulation",
+                "parameters": {"request": user_request},
+                "depends_on": [step_id - 1],
+                "description": "执行DWSIM操作"
+            })
+            step_id += 1
+
+        return {
+            "task_type": "dwsim_automation",
+            "required_skills": ["dwsim"],
+            "confidence": 0.8,
+            "estimated_time": 60.0,
+            "steps": steps
         }
 
     async def validate_plan(self, plan: ExecutionPlan) -> Dict[str, Any]:

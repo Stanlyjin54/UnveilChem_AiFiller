@@ -96,3 +96,15 @@ parsers/
 
 # PDFMathTranslate
 temp_pdf2zh/
+
+# Trae IDE
+.trae/
+
+# Test images
+backend/test_*.png
+backend/test_*.jpg
+
+# Docs automation scripts (for testing)
+docs/aspen_automation.py
+docs/dwsim_automation.py
+docs/test_*.py

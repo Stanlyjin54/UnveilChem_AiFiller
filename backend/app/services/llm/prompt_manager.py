@@ -132,6 +132,128 @@ class PromptManager:
     ],
     "estimated_time": "预计时间",
     "possible_issues": ["可能的问题"]
+}}""",
+
+        "dwsim_intent_classification": """你是一个化工流程模拟专家。根据用户输入，判断用户想要在DWSIM中执行的操作。
+
+可能的意图：
+- dwsim_create_flowsheet: 创建新的流程图
+- dwsim_run_simulation: 运行仿真计算
+- dwsim_sensitivity_analysis: 执行灵敏度分析
+- dwsim_optimization: 执行参数优化
+- dwsim_add_equipment: 添加设备（泵、压缩机、加热器、冷却器、阀门、混合器、反应器、精馏塔等）
+- dwsim_add_stream: 添加物料流
+- dwsim_set_parameters: 设置参数（温度、压力、流量、组成等）
+- dwsim_get_results: 获取仿真结果
+- dwsim_load_flowsheet: 加载已有流程图
+- dwsim_save_flowsheet: 保存流程图
+- dwsim_connect_objects: 连接设备和物料流
+- general_chat: 一般对话或无法识别的操作
+
+用户输入：{user_input}
+
+请直接返回意图名称，不要有其他内容：""",
+
+        "dwsim_parameter_extraction": """你是一个化工流程模拟专家。从用户输入中提取DWSIM仿真所需的参数。
+
+可识别的参数类型：
+- compounds: 化合物名称列表，如 ['Water', 'Ethanol', 'Methanol']
+- property_package: 物性包名称，可选值: Peng-Robinson (PR), Soave-Redlich-Kwong (SRK), NRTL, UNIQUAC, UNIFAC, Wilson, CoolProp
+- temperature: 温度，单位K
+- pressure: 压力，单位Pa
+- molar_flow: 摩尔流量，单位kmol/h
+- mass_flow: 质量流量，单位kg/h
+- composition: 摩尔组成，如 [0.5, 0.3, 0.2]
+- equipment_type: 设备类型，可选值: pump, compressor, heater, cooler, valve, mixer, splitter, heat_exchanger, reactor, distillation_column, flash_drum, tank
+- equipment_name: 设备名称
+- stream_name: 物料流名称
+- variable_object: 灵敏度分析变量对象
+- variable_property: 灵敏度分析变量属性
+- variable_range: 变量变化范围
+- objective_object: 目标对象
+- objective_property: 目标属性
+- bounds: 优化边界
+- objectives: 优化目标列表
+- file_path: 文件路径
+
+用户输入：
+{input_text}
+
+请以JSON格式返回提取的参数，格式如下：
+{{
+    "parameters": {{
+        "参数名": "参数值"
+    }},
+    "confidence": 0.0-1.0之间的置信度
+}}""",
+
+        "dwsim_equipment_mapping": """你是一个化工流程模拟专家。根据用户描述，确定要添加的设备类型和参数。
+
+设备类型映射：
+- 泵/pump -> pump
+- 压缩机/compressor -> compressor
+- 加热器/加热炉/heater -> heater
+- 冷却器/冷凝器/cooler -> cooler
+- 阀门/调节阀/valve -> valve
+- 混合器/mixer -> mixer
+- 分流器/splitter -> splitter
+- 换热器/热交换器/heat_exchanger -> heat_exchanger
+- 反应器/reactor -> reactor
+- 精馏塔/蒸馏塔/distillation_column -> distillation_column
+- 闪蒸罐/flash_drum -> flash_drum
+- 储罐/罐/tank -> tank
+
+用户输入：
+{input_text}
+
+请返回设备信息，格式如下：
+{{
+    "equipment_type": "设备类型",
+    "equipment_name": "设备名称",
+    "parameters": {{
+        "参数名": "参数值"
+    }}
+}}""",
+
+        "dwsim_task_planning": """你是一个化工流程模拟专家。根据用户需求，规划DWSIM仿真任务步骤。
+
+可用操作：
+- connect: 连接DWSIM
+- create_flowsheet: 创建流程图
+- load_flowsheet: 加载流程图
+- add_compounds: 添加化合物
+- create_and_add_property_package: 创建物性包
+- add_material_stream: 添加物料流
+- add_pump/compressor/heater/cooler/valve/mixer/splitter/heat_exchanger/reactor/distillation_column/flash_drum/tank: 添加设备
+- connect_objects: 连接对象
+- set_object_property: 设置属性
+- run_simulation: 运行仿真
+- get_results: 获取结果
+- sensitivity_analysis: 灵敏度分析
+- optimize_single_parameter: 单参数优化
+- multi_objective_optimization: 多目标优化
+- save_flowsheet: 保存流程图
+
+用户请求：{user_request}
+
+已提取参数：{extracted_params}
+
+请生成执行计划，格式如下：
+{{
+    "task_type": "任务类型",
+    "required_skills": ["dwsim"],
+    "confidence": 0.95,
+    "estimated_time": 60.0,
+    "steps": [
+        {{
+            "step_id": 1,
+            "skill_name": "dwsim",
+            "action": "操作名称",
+            "parameters": {{参数键值对}},
+            "depends_on": [],
+            "description": "步骤描述"
+        }}
+    ]
 }}"""
     }
     
