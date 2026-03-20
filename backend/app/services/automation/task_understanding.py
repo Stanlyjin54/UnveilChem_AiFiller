@@ -215,16 +215,26 @@ class TaskUnderstandingService:
         }
 
     def _generate_dwsim_fallback_plan(self, user_request: str, user_request_lower: str) -> Dict[str, Any]:
-        """生成DWSIM任务的降级执行计划"""
+        """
+        生成DWSIM任务的降级执行计划
+        支持解析复杂的化工流程数据（物流、设备、参数）
+        """
         steps = []
         step_id = 1
 
+        # ========== 1. 解析化合物 ==========
         compound_keywords = {
             "water": "Water", "水": "Water",
             "ethanol": "Ethanol", "乙醇": "Ethanol",
             "methanol": "Methanol", "甲醇": "Methanol",
             "benzene": "Benzene", "苯": "Benzene",
-            "toluene": "Toluene", "甲苯": "Toluene"
+            "toluene": "Toluene", "甲苯": "Toluene",
+            "phenol": "Phenol", "酚": "Phenol",
+            "isobutylene": "Isobutylene", "异丁烯": "Isobutylene",
+            "naoh": "NaOH", "氢氧化钠": "NaOH",
+            "koh": "KOH", "氢氧化钾": "KOH",
+            "二叔丁基酚": "Di-tert-butylphenol",
+            "联苯二酚": "Biphenol",
         }
         compounds = []
         for kw, compound in compound_keywords.items():
@@ -232,6 +242,7 @@ class TaskUnderstandingService:
                 compounds.append(compound)
         compounds = list(set(compounds)) if compounds else ["Water", "Ethanol"]
 
+        # ========== 2. 解析物性包 ==========
         pp_keywords = {
             "peng-robinson": "Peng-Robinson (PR)", "pr": "Peng-Robinson (PR)",
             "srk": "Soave-Redlich-Kwong (SRK)", "soave": "Soave-Redlich-Kwong (SRK)",
@@ -243,6 +254,7 @@ class TaskUnderstandingService:
                 property_package = pp
                 break
 
+        # ========== 3. 解析设备 ==========
         equipment_keywords = {
             "pump": "pump", "泵": "pump",
             "compressor": "compressor", "压缩机": "compressor",
@@ -252,19 +264,72 @@ class TaskUnderstandingService:
             "mixer": "mixer", "混合器": "mixer",
             "splitter": "splitter", "分流器": "splitter",
             "heat_exchanger": "heat_exchanger", "换热器": "heat_exchanger",
-            "reactor": "reactor", "反应器": "reactor",
-            "distillation": "distillation_column", "精馏塔": "distillation_column", "蒸馏塔": "distillation_column",
+            "reactor": "reactor", "反应器": "reactor", "反应釜": "reactor",
+            "distillation": "distillation_column", "精馏塔": "distillation_column", "蒸馏塔": "distillation_column", "塔": "distillation_column",
             "flash": "flash_drum", "闪蒸": "flash_drum",
-            "tank": "tank", "储罐": "tank"
+            "tank": "tank", "储罐": "tank", "罐": "tank",
+            "filter": "filter", "过滤机": "filter", "过滤器": "filter",
+            "dryer": "dryer", "干燥箱": "dryer", "干燥器": "dryer",
         }
 
+        # ========== 4. 解析物流数据 ==========
+        import re
+        streams = []
+        
+        # 匹配物流编号模式 F101, F201 等
+        stream_pattern = r'([Ff]\d{2,3})\s*[\t\s]+([^\t]+)'
+        stream_matches = re.findall(stream_pattern, user_request)
+        
+        # 匹配温度（支持多种格式）
+        temp_pattern = r'(\d+(?:\.\d+)?)\s*[℃°]'
+        temp_matches = re.findall(temp_pattern, user_request)
+        temperatures = [float(t) + 273.15 for t in temp_matches]  # 转换为开尔文
+        
+        # 匹配压力（支持 MPa 和 kPa）
+        pressure_pattern = r'(\d+(?:\.\d+)?)\s*[Mm][Pp][Aa]'
+        pressure_matches = re.findall(pressure_pattern, user_request)
+        pressures = [float(p) * 1e6 for p in pressure_matches]  # 转换为Pa
+        
+        # 匹配质量流量
+        mass_flow_pattern = r'(\d+(?:\.\d+)?)\s*kg/h'
+        mass_flow_matches = re.findall(mass_flow_pattern, user_request)
+        mass_flows = [float(mf) for mf in mass_flow_matches]
+        
+        # 匹配摩尔流量
+        molar_flow_pattern = r'(\d+(?:\.\d+)?)\s*kmol/h'
+        molar_flow_matches = re.findall(molar_flow_pattern, user_request)
+        molar_flows = [float(mf) for mf in molar_flow_matches]
+        
+        for i, match in enumerate(stream_matches[:5]):  # 限制最多5个物流
+            stream_id = match[0].upper()
+            stream_name = match[1].strip()
+            
+            # 从解析结果中获取参数
+            temp = temperatures[i] if i < len(temperatures) else 298.15
+            pres = pressures[i] if i < len(pressures) else 101325
+            mass_flow = mass_flows[i] if i < len(mass_flows) else 100.0
+            molar_flow = molar_flows[i] if i < len(molar_flows) else 1.0
+            
+            streams.append({
+                "id": stream_id,
+                "name": stream_name,
+                "temperature": temp,
+                "pressure": pres,
+                "mass_flow": mass_flow,
+                "molar_flow": molar_flow
+            })
+
+        # ========== 6. 检测操作类型 ==========
         is_create = any(kw in user_request_lower for kw in ["创建", "新建", "建立", "create", "new", "开始"])
-        is_run = any(kw in user_request_lower for kw in ["运行", "计算", "仿真", "run", "calculate", "solve"])
+        is_run = any(kw in user_request_lower for kw in ["运行", "计算", "仿真", "模拟", "run", "calculate", "solve"])
         is_sensitivity = any(kw in user_request_lower for kw in ["灵敏度", "敏感性", "sensitivity", "sweep"])
         is_optimization = any(kw in user_request_lower for kw in ["优化", "最优", "optimize", "optimization"])
         is_add_equipment = any(kw in user_request_lower for kw in ["添加", "增加", "加入", "add"])
         is_load = any(kw in user_request_lower for kw in ["加载", "打开", "读取", "load", "open"])
         is_save = any(kw in user_request_lower for kw in ["保存", "存储", "save"])
+        
+        # 检测是否包含复杂流程数据
+        has_process_data = len(streams) > 0 or "工艺流程" in user_request or "PFD" in user_request or "P&ID" in user_request
 
         detected_equipment = None
         for kw, eq_type in equipment_keywords.items():
@@ -364,7 +429,8 @@ class TaskUnderstandingService:
             })
             step_id += 1
 
-        elif is_create or is_run:
+        elif is_create or is_run or has_process_data:
+            # 复杂流程模拟：创建完整的流程图
             steps.append({
                 "step_id": step_id,
                 "skill_name": "dwsim",
@@ -374,6 +440,7 @@ class TaskUnderstandingService:
                 "description": "连接DWSIM"
             })
             step_id += 1
+            
             steps.append({
                 "step_id": step_id,
                 "skill_name": "dwsim",
@@ -383,6 +450,7 @@ class TaskUnderstandingService:
                 "description": "创建流程图"
             })
             step_id += 1
+            
             steps.append({
                 "step_id": step_id,
                 "skill_name": "dwsim",
@@ -392,6 +460,7 @@ class TaskUnderstandingService:
                 "description": f"添加化合物: {', '.join(compounds)}"
             })
             step_id += 1
+            
             steps.append({
                 "step_id": step_id,
                 "skill_name": "dwsim",
@@ -401,17 +470,91 @@ class TaskUnderstandingService:
                 "description": f"添加物性包: {property_package}"
             })
             step_id += 1
-
-            if is_run:
+            
+            # 添加物料流（带完整参数）
+            for stream in streams:
+                steps.append({
+                    "step_id": step_id,
+                    "skill_name": "dwsim",
+                    "action": "add_material_stream",
+                    "parameters": {
+                        "name": stream["id"],
+                        "temperature": stream["temperature"],
+                        "pressure": stream["pressure"],
+                        "mass_flow": stream.get("mass_flow", 100.0),
+                        "molar_flow": stream.get("molar_flow", 1.0)
+                    },
+                    "depends_on": [step_id - 1],
+                    "description": f"添加物料流: {stream['id']} ({stream['name']}) - T={stream['temperature']:.1f}K, P={stream['pressure']:.0f}Pa"
+                })
+                step_id += 1
+            
+            # 添加检测到的设备
+            equipment_list = []
+            if detected_equipment:
+                equipment_name = f"{detected_equipment.capitalize()}_1"
+                steps.append({
+                    "step_id": step_id,
+                    "skill_name": "dwsim",
+                    "action": f"add_{detected_equipment}",
+                    "parameters": {
+                        "name": equipment_name,
+                        "x": 200 + (step_id - 5) * 100,
+                        "y": 200
+                    },
+                    "depends_on": [step_id - 1],
+                    "description": f"添加设备: {detected_equipment}"
+                })
+                equipment_list.append(equipment_name)
+                step_id += 1
+            
+            # 添加设备连接（如果有物料流和设备）
+            if len(streams) >= 2 and equipment_list:
+                # 连接第一个物流到设备入口
+                steps.append({
+                    "step_id": step_id,
+                    "skill_name": "dwsim",
+                    "action": "connect_objects",
+                    "parameters": {
+                        "from_object": streams[0]["id"],
+                        "to_object": equipment_list[0],
+                        "from_port": 0,
+                        "to_port": 0
+                    },
+                    "depends_on": [step_id - 1],
+                    "description": f"连接 {streams[0]['id']} -> {equipment_list[0]}"
+                })
+                step_id += 1
+                
+                # 连接设备出口到第二个物流
+                if len(streams) >= 2:
+                    steps.append({
+                        "step_id": step_id,
+                        "skill_name": "dwsim",
+                        "action": "connect_objects",
+                        "parameters": {
+                            "from_object": equipment_list[0],
+                            "to_object": streams[1]["id"],
+                            "from_port": 0,
+                            "to_port": 0
+                        },
+                        "depends_on": [step_id - 1],
+                        "description": f"连接 {equipment_list[0]} -> {streams[1]['id']}"
+                    })
+                    step_id += 1
+            
+            # 运行仿真
+            if is_run or has_process_data:
                 steps.append({
                     "step_id": step_id,
                     "skill_name": "dwsim",
                     "action": "run_simulation",
-                    "parameters": {},
+                    "parameters": {"request": user_request},
                     "depends_on": [step_id - 1],
                     "description": "运行仿真计算"
                 })
                 step_id += 1
+                
                 steps.append({
                     "step_id": step_id,
                     "skill_name": "dwsim",

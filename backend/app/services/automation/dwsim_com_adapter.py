@@ -497,9 +497,26 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
     
     def add_material_stream(self, name: str, x: int = 100, y: int = 100, 
                            temperature: float = None, pressure: float = None,
-                           molar_flow: float = None, composition: List[float] = None,
+                           molar_flow: float = None, mass_flow: float = None,
+                           composition: List[float] = None,
                            flowsheet: Any = None) -> Any:
-        """添加物料流"""
+        """
+        添加物料流
+        
+        Args:
+            name: 物料流名称
+            x: X 坐标
+            y: Y 坐标
+            temperature: 温度 (K)
+            pressure: 压力 (Pa)
+            molar_flow: 摩尔流量 (kmol/h)
+            mass_flow: 质量流量 (kg/h)
+            composition: 摩尔组成列表
+            flowsheet: 流程图对象
+            
+        Returns:
+            物料流对象
+        """
         try:
             obj = self.add_object(self.DWSIMObjectType.MaterialStream, x, y, name, flowsheet)
             if not obj:
@@ -511,10 +528,13 @@ class DWSIMCOMAdapter(SoftwareAutomationAdapter):
                 self.set_object_property(name, "Pressure", pressure, flowsheet)
             if molar_flow is not None:
                 self.set_object_property(name, "MolarFlow", molar_flow, flowsheet)
+            if mass_flow is not None:
+                self.set_object_property(name, "MassFlow", mass_flow, flowsheet)
             if composition is not None:
                 self.set_object_property(name, "MolarComposition", composition, flowsheet)
             
             self.streams[name] = obj
+            logger.info(f"添加物料流: {name} - T={temperature}K, P={pressure}Pa, MolarFlow={molar_flow} kmol/h, MassFlow={mass_flow} kg/h")
             return obj
             
         except Exception as e:

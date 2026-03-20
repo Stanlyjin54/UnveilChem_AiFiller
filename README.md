@@ -2,6 +2,8 @@
 
 <div align="center">
 
+![Logo](frontend/src/assets/AiFiller.png)
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-yellow.svg)
@@ -15,7 +17,21 @@
 
 ---
 
-## 📖 项目简介
+## � 功能展示
+
+### 界面预览
+
+![界面截图1](frontend/src/assets/AiFiller1.png)
+
+![界面截图2](frontend/src/assets/AiFiller2.png)
+
+### 文档翻译
+
+![翻译功能演示](frontend/src/assets/翻译实测1.png)
+
+---
+
+## � 项目简介
 
 UnveilChem 是一款创新的**智能化工软件自动化平台**，通过 AI 驱动的 Agent 系统，实现化工文档的智能解析、参数提取、软件自动执行和结果输出的全流程自动化。
 
@@ -223,6 +239,7 @@ start_frontend.bat   # 启动前端
 - 项目主页：[GitHub Repository](https://github.com/Stanlyjin54/UnveilChem_AiFiller)
 - 问题反馈：[Issues](https://github.com/Stanlyjin54/UnveilChem_AiFiller/issues)
 - 邮箱：549057226@qq.com
+- 微信：[Wechat](frontend/src/assets/Wechat.jpg)
 
 ---
 

@@ -17,6 +17,7 @@ from .task_understanding import ExecutionPlan, ExecutionStep, get_task_understan
 from .skill import get_skill_registry, Skill, SkillAction
 from .memory import get_agent_memory, ExecutionRecord
 from .automation_engine import AutomationEngine
+from ..llm.llm_client import llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,13 @@ class AgentEngine:
 
     def __init__(self, max_iterations: int = 20):
         self.max_iterations = max_iterations
-        self.task_service = get_task_understanding_service()
+        
+        # 获取 LLM 客户端用于任务理解
+        llm_client = llm_service.get_client()
+        if llm_client is None:
+            logger.warning("未找到可用的 LLM 客户端，任务理解将使用规则引擎降级")
+        
+        self.task_service = get_task_understanding_service(llm_client)
         self.skill_registry = get_skill_registry()
         self.memory = get_agent_memory()
         self.active_agents: Dict[str, AgentContext] = {}
@@ -1024,8 +1031,12 @@ class AgentEngine:
         return data
 
     def _generate_mock_result(self, skill_name: str, action_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """生成模拟结果（当没有真实适配器时）"""
+        """
+        生成模拟结果（当没有真实适配器时）
+        根据用户输入动态生成相应的模拟数据
+        """
         import random
+        import re
 
         # 基础结果
         result = {
@@ -1039,62 +1050,98 @@ class AgentEngine:
 
         # 根据技能和操作生成更丰富的模拟数据
         if skill_name == "dwsim" and action_name == "run_simulation":
-            # 精馏塔模拟结果
+            # 从用户请求中提取信息
+            request = parameters.get("request", "")
+            request_lower = request.lower()
+            
+            # 解析化合物
+            compound_keywords = {
+                "water": "Water", "水": "Water",
+                "ethanol": "Ethanol", "乙醇": "Ethanol",
+                "methanol": "Methanol", "甲醇": "Methanol",
+                "benzene": "Benzene", "苯": "Benzene",
+                "toluene": "Toluene", "甲苯": "Toluene",
+                "phenol": "Phenol", "酚": "Phenol",
+                "isobutylene": "Isobutylene", "异丁烯": "Isobutylene",
+                "二叔丁基酚": "Di-tert-butylphenol",
+                "联苯二酚": "Biphenol",
+            }
+            
+            detected_compounds = []
+            for kw, compound in compound_keywords.items():
+                if kw in request_lower:
+                    detected_compounds.append(compound)
+            
+            # 如果没有检测到化合物，使用默认值
+            if not detected_compounds:
+                detected_compounds = ["Ethanol", "Water"]
+            
+            # 解析物流编号
+            stream_pattern = r'([Ff]\d{2,3})'
+            stream_ids = re.findall(stream_pattern, request)
+            if not stream_ids:
+                stream_ids = ["Feed", "Product"]
+            
+            # 解析温度
+            temp_pattern = r'(\d+(?:\.\d+)?)\s*[℃°]'
+            temp_matches = re.findall(temp_pattern, request)
+            temperatures = [float(t) + 273.15 for t in temp_matches] if temp_matches else [350, 380]
+            
+            # 解析压力
+            pressure_pattern = r'(\d+(?:\.\d+)?)\s*[Mm][Pp][Aa]'
+            pressure_matches = re.findall(pressure_pattern, request)
+            pressures = [float(p) * 1e6 for p in pressure_matches] if pressure_matches else [101325, 101325]
+            
+            # 生成动态的模拟结果
+            streams_result = {}
+            for i, stream_id in enumerate(stream_ids[:3]):
+                temp = temperatures[i] if i < len(temperatures) else temperatures[-1]
+                pres = pressures[i] if i < len(pressures) else pressures[-1]
+                
+                # 生成组成
+                composition = {}
+                remaining = 1.0
+                for j, compound in enumerate(detected_compounds):
+                    if j == len(detected_compounds) - 1:
+                        composition[compound] = round(remaining, 4)
+                    else:
+                        frac = round(random.uniform(0.1, remaining * 0.8), 4)
+                        composition[compound] = frac
+                        remaining -= frac
+                
+                streams_result[stream_id.upper() if len(stream_id) <= 4 else f"Stream_{i+1}"] = {
+                    "temperature": round(temp, 2),
+                    "pressure": round(pres, 2),
+                    "molar_flow": round(random.uniform(50, 200), 2),
+                    "mass_flow": round(random.uniform(1000, 5000), 2),
+                    "vapor_fraction": round(random.uniform(0, 0.5), 2),
+                    "composition": composition
+                }
+            
+            # 生成结果
             result["output"] = {
                 "status": "completed",
-                "simulation_type": "distillation",
+                "simulation_type": "process_simulation",
+                "compounds_used": detected_compounds,
                 "results": {
-                    "column": {
-                        "number_of_stages": parameters.get("num_stages", 20),
-                        "reflux_ratio": parameters.get("reflux_ratio", 2.0),
-                        "feed_stage": parameters.get("feed_stage", 10),
-                        "reboiler_duty": round(random.uniform(500, 2000), 2),
-                        "condenser_duty": round(random.uniform(-2000, -500), 2),
-                        "pressure_drop": round(random.uniform(0.01, 0.1), 4)
-                    },
-                    "streams": {
-                        "Feed": {
-                            "temperature": round(random.uniform(300, 400), 2),
-                            "pressure": 101325,
-                            "molar_flow": round(random.uniform(50, 200), 2),
-                            "mass_flow": round(random.uniform(1000, 5000), 2),
-                            "vapor_fraction": 0.3,
-                            "composition": {
-                                "Ethanol": 0.5,
-                                "Water": 0.5
-                            }
-                        },
-                        "Distillate": {
-                            "temperature": round(random.uniform(350, 380), 2),
-                            "pressure": 101325,
-                            "molar_flow": round(random.uniform(20, 80), 2),
-                            "mass_flow": round(random.uniform(500, 2000), 2),
-                            "vapor_fraction": 0.0,
-                            "composition": {
-                                "Ethanol": round(random.uniform(0.85, 0.95), 4),
-                                "Water": round(random.uniform(0.05, 0.15), 4)
-                            }
-                        },
-                        "Bottoms": {
-                            "temperature": round(random.uniform(380, 420), 2),
-                            "pressure": 101325,
-                            "molar_flow": round(random.uniform(20, 80), 2),
-                            "mass_flow": round(random.uniform(500, 2000), 2),
-                            "vapor_fraction": 0.0,
-                            "composition": {
-                                "Ethanol": round(random.uniform(0.01, 0.1), 4),
-                                "Water": round(random.uniform(0.9, 0.99), 4)
-                            }
-                        }
-                    },
+                    "streams": streams_result,
                     "mass_balance": {
                         "input": round(random.uniform(1000, 5000), 2),
                         "output": round(random.uniform(1000, 5000), 2),
                         "error": round(random.uniform(-0.01, 0.01), 6)
+                    },
+                    "energy_balance": {
+                        "heat_duty": round(random.uniform(-2000, 2000), 2),
+                        "work": round(random.uniform(-100, 100), 2)
                     }
                 }
             }
-            result["message"] = "精馏塔模拟完成"
+            
+            # 根据检测到的化合物生成描述
+            if detected_compounds:
+                result["message"] = f"流程模拟完成（化合物: {', '.join(detected_compounds)}）"
+            else:
+                result["message"] = "流程模拟完成"
 
         elif skill_name == "aspen_plus" and action_name == "run":
             result["output"] = {
