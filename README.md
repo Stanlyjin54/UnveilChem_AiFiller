@@ -237,6 +237,7 @@ start_frontend.bat   # 启动前端
 ## 📞 联系我们
 
 - 项目主页：[GitHub Repository](https://github.com/Stanlyjin54/UnveilChem_AiFiller)
+-         [GitCode Repository](https://gitcode.com/2604_95566930/unveilchem_AiFiller)
 - 问题反馈：[Issues](https://github.com/Stanlyjin54/UnveilChem_AiFiller/issues)
 - 邮箱：549057226@qq.com
 - 微信：[Wechat](frontend/src/assets/Wechat.jpg)
