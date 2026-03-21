@@ -458,9 +458,7 @@ async def get_template_preview(
 
 @router.post("/pdf-to-word")
 async def convert_pdf_to_word(
-    file: UploadFile = File(...),
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    file: UploadFile = File(...)
 ):
     """
     PDF 转 Word 和 Markdown 格式转换（纯格式转换，不翻译）
@@ -470,6 +468,8 @@ async def convert_pdf_to_word(
     Returns:
         - word_file: Word 文档路径
         - markdown_file: Markdown 文档路径
+    
+    Note: 此接口不需要认证，为公开工具功能
     """
     import tempfile
     import logging
@@ -477,11 +477,6 @@ async def convert_pdf_to_word(
     import mammoth
     
     logger = logging.getLogger("unveilchem")
-    
-    username = verify_token(token)
-    user = db.query(User).filter(User.username == username).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
     
     try:
         suffix = Path(file.filename).suffix.lower()
@@ -548,18 +543,13 @@ async def convert_pdf_to_word(
 
 @router.get("/files/download")
 async def download_file(
-    path: str,
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    path: str
 ):
     """
     下载转换后的文件
-    """
-    username = verify_token(token)
-    user = db.query(User).filter(User.username == username).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
     
+    Note: 此接口不需要认证，为公开工具功能
+    """
     try:
         file_path = Path(path)
         
