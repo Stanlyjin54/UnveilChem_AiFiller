@@ -170,3 +170,26 @@ export const reportAPI = {
     return response.data.data
   }
 }
+
+/**
+ * 文档转换 API（纯格式转换，不翻译）
+ */
+export const convertAPI = {
+  /**
+   * PDF 转 Word 格式转换
+   * 使用 pdf2docx 库进行纯格式转换，保留原文格式和排版
+   */
+  pdfToWord: async (
+    file: File
+  ): Promise<{ output_file: string; filename: string; message: string }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await api.post('/documents/pdf-to-word', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data.data
+  }
+}

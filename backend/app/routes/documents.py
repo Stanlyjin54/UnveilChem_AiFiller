@@ -454,3 +454,101 @@ async def get_template_preview(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模板预览失败: {str(e)}")
+
+
+@router.post("/pdf-to-word")
+async def convert_pdf_to_word(
+    file: UploadFile = File(...),
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """
+    PDF 转 Word 格式转换（纯格式转换，不翻译）
+    使用 pdf2docx 库将 PDF 转换为可编辑的 Word 文档，保留原文格式和排版
+    """
+    import tempfile
+    import logging
+    from pdf2docx import Converter
+    
+    logger = logging.getLogger("unveilchem")
+    
+    username = verify_token(token)
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    try:
+        suffix = Path(file.filename).suffix.lower()
+        if suffix != '.pdf':
+            raise HTTPException(status_code=400, detail="仅支持 PDF 文件")
+        
+        temp_dir = Path(tempfile.gettempdir()) / "pdf_to_word"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        input_path = temp_dir / file.filename
+        contents = await file.read()
+        with open(input_path, "wb") as f:
+            f.write(contents)
+        
+        output_filename = f"{Path(file.filename).stem}.docx"
+        output_path = temp_dir / output_filename
+        
+        logger.info(f"开始 PDF → Word 格式转换: {input_path}")
+        
+        cv = Converter(str(input_path))
+        cv.convert(str(output_path), start=0, end=None)
+        cv.close()
+        
+        logger.info(f"PDF → Word 格式转换完成: {output_path}")
+        
+        return {
+            "success": True,
+            "data": {
+                "output_file": str(output_path),
+                "filename": output_filename,
+                "message": "PDF 转换完成，已生成 Word 文档"
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PDF → Word 格式转换失败: {e}")
+        import traceback
+        logger.error(f"详细堆栈: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/files/download")
+async def download_file(
+    path: str,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """
+    下载转换后的文件
+    """
+    username = verify_token(token)
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    try:
+        file_path = Path(path)
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail="路径不是文件")
+        
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            path=str(file_path),
+            filename=file_path.name,
+            media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

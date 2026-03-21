@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Upload, Button, Card, List, Typography, message, Spin, Tag, Space, Input, Popconfirm, Modal, Select, Progress } from 'antd'
+import { Upload, Button, Card, List, Typography, message, Spin, Tag, Space, Input, Popconfirm, Modal } from 'antd'
 import { UploadOutlined, FileTextOutlined, DownloadOutlined, RobotOutlined, FileWordOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd/es/upload/interface'
 import api from '../services/api'
-import { translationAPI } from '../services/agentApi'
+import { convertAPI } from '../services/agentApi'
 
 const { Title, Text } = Typography
 
@@ -57,10 +57,7 @@ const DocumentAnalyzer: React.FC = () => {
   
   // PDF 转 Word 相关状态
   const [pdfToWordUploading, setPdfToWordUploading] = useState(false)
-  const [pdfToWordProgress, setPdfToWordProgress] = useState(0)
-  const [translatedWordFile, setTranslatedWordFile] = useState<{ output_file: string; filename: string } | null>(null)
-  const [pdfSourceLang, setPdfSourceLang] = useState('en')
-  const [pdfTargetLang, setPdfTargetLang] = useState('zh')
+  const [convertedWordFile, setConvertedWordFile] = useState<{ output_file: string; filename: string } | null>(null)
   
   // 报告生成相关状态
   const [generatingReport, setGeneratingReport] = useState(false)
@@ -715,7 +712,7 @@ const DocumentAnalyzer: React.FC = () => {
   }
 
   /**
-   * 处理 PDF 转 Word 上传
+   * 处理 PDF 转 Word 上传（纯格式转换，不翻译）
    */
   const handlePdfToWordUpload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
@@ -724,12 +721,11 @@ const DocumentAnalyzer: React.FC = () => {
     }
 
     setPdfToWordUploading(true)
-    setPdfToWordProgress(0)
-    setTranslatedWordFile(null)
+    setConvertedWordFile(null)
 
     try {
-      const result = await translationAPI.translatePdfToWord(file, pdfSourceLang, pdfTargetLang)
-      setTranslatedWordFile(result)
+      const result = await convertAPI.pdfToWord(file)
+      setConvertedWordFile(result)
       message.success('PDF 转换完成，已生成 Word 文档')
     } catch (error: any) {
       message.error(error.unifiedMessage || 'PDF 转换失败')
@@ -744,10 +740,10 @@ const DocumentAnalyzer: React.FC = () => {
    * 下载转换后的 Word 文档
    */
   const handleDownloadWord = () => {
-    if (translatedWordFile) {
+    if (convertedWordFile) {
       const link = document.createElement('a')
-      link.href = `http://localhost:8001/api/translation/files/download?path=${encodeURIComponent(translatedWordFile.output_file)}`
-      link.download = translatedWordFile.filename
+      link.href = `http://localhost:8001/api/documents/files/download?path=${encodeURIComponent(convertedWordFile.output_file)}`
+      link.download = convertedWordFile.filename
       link.target = '_blank'
       document.body.appendChild(link)
       link.click()
@@ -804,41 +800,14 @@ const DocumentAnalyzer: React.FC = () => {
         title={
           <Space>
             <FileWordOutlined />
-            <span>PDF → Word 转换</span>
+            <span>PDF → Word 格式转换</span>
           </Space>
         }
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Text type="secondary">
-            上传 PDF 文件，自动转换为可编辑的 Word 文档，保留原文格式和排版
+            上传 PDF 文件，自动转换为可编辑的 Word 文档，保留原文格式和排版（纯格式转换，不翻译）
           </Text>
-          
-          <Space wrap>
-            <Text>源语言：</Text>
-            <Select
-              value={pdfSourceLang}
-              onChange={setPdfSourceLang}
-              style={{ width: 120 }}
-              options={[
-                { value: 'en', label: '英文' },
-                { value: 'zh', label: '中文' },
-                { value: 'ja', label: '日文' },
-                { value: 'ko', label: '韩文' },
-              ]}
-            />
-            <Text>目标语言：</Text>
-            <Select
-              value={pdfTargetLang}
-              onChange={setPdfTargetLang}
-              style={{ width: 120 }}
-              options={[
-                { value: 'zh', label: '中文' },
-                { value: 'en', label: '英文' },
-                { value: 'ja', label: '日文' },
-                { value: 'ko', label: '韩文' },
-              ]}
-            />
-          </Space>
 
           <Upload.Dragger {...pdfToWordUploadProps} disabled={pdfToWordUploading}>
             <p className="ant-upload-drag-icon">
@@ -857,11 +826,11 @@ const DocumentAnalyzer: React.FC = () => {
             </div>
           )}
 
-          {translatedWordFile && !pdfToWordUploading && (
+          {convertedWordFile && !pdfToWordUploading && (
             <Card size="small" style={{ backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text strong style={{ color: '#52c41a' }}>✅ 转换完成</Text>
-                <Text>文件名：{translatedWordFile.filename}</Text>
+                <Text>文件名：{convertedWordFile.filename}</Text>
                 <Button
                   type="primary"
                   icon={<DownloadOutlined />}
