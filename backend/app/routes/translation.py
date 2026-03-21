@@ -5,7 +5,7 @@ Translation API路由
 提供翻译功能接口
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional
 import logging
@@ -221,9 +221,9 @@ async def translate_pdf(
 
 @router.post("/pdf-to-word")
 async def translate_pdf_to_word(
-    target_lang: str = "zh",
-    source_lang: str = "en",
     file: UploadFile = File(...),
+    source_lang: str = Form("en"),
+    target_lang: str = Form("zh"),
     db: Session = Depends(get_db)
 ):
     """使用 PDF → Word → Ollama 方案翻译 PDF 文档（保留原文格式）"""
