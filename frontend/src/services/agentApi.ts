@@ -176,12 +176,19 @@ export const reportAPI = {
  */
 export const convertAPI = {
   /**
-   * PDF 转 Word 格式转换
-   * 使用 pdf2docx 库进行纯格式转换，保留原文格式和排版
+   * PDF 转 Word 和 Markdown 格式转换
+   * 使用 pdf2docx 库进行 PDF → Word 转换
+   * 使用 mammoth 库进行 Word → Markdown 转换，方便 LLM 阅读
    */
   pdfToWord: async (
     file: File
-  ): Promise<{ output_file: string; filename: string; message: string }> => {
+  ): Promise<{
+    word_file: string
+    word_filename: string
+    markdown_file: string
+    markdown_filename: string
+    message: string
+  }> => {
     const formData = new FormData()
     formData.append('file', file)
 

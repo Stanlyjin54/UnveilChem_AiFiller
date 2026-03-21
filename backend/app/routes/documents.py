@@ -463,12 +463,18 @@ async def convert_pdf_to_word(
     db: Session = Depends(get_db)
 ):
     """
-    PDF 转 Word 格式转换（纯格式转换，不翻译）
-    使用 pdf2docx 库将 PDF 转换为可编辑的 Word 文档，保留原文格式和排版
+    PDF 转 Word 和 Markdown 格式转换（纯格式转换，不翻译）
+    使用 pdf2docx 库将 PDF 转换为可编辑的 Word 文档
+    使用 mammoth 库将 Word 转换为 Markdown 文档，方便 LLM 阅读
+    
+    Returns:
+        - word_file: Word 文档路径
+        - markdown_file: Markdown 文档路径
     """
     import tempfile
     import logging
     from pdf2docx import Converter
+    import mammoth
     
     logger = logging.getLogger("unveilchem")
     
@@ -490,30 +496,51 @@ async def convert_pdf_to_word(
         with open(input_path, "wb") as f:
             f.write(contents)
         
-        output_filename = f"{Path(file.filename).stem}.docx"
-        output_path = temp_dir / output_filename
+        base_name = Path(file.filename).stem
+        word_filename = f"{base_name}.docx"
+        md_filename = f"{base_name}.md"
+        word_path = temp_dir / word_filename
+        md_path = temp_dir / md_filename
         
         logger.info(f"开始 PDF → Word 格式转换: {input_path}")
         
         cv = Converter(str(input_path))
-        cv.convert(str(output_path), start=0, end=None)
+        cv.convert(str(word_path), start=0, end=None)
         cv.close()
         
-        logger.info(f"PDF → Word 格式转换完成: {output_path}")
+        logger.info(f"PDF → Word 格式转换完成: {word_path}")
+        
+        logger.info(f"开始 Word → Markdown 格式转换: {word_path}")
+        
+        with open(word_path, "rb") as docx_file:
+            result = mammoth.convert_to_markdown(docx_file)
+            md_content = result.value
+            messages = result.messages
+        
+        with open(md_path, "w", encoding="utf-8") as md_file:
+            md_file.write(md_content)
+        
+        logger.info(f"Word → Markdown 格式转换完成: {md_path}")
+        
+        if messages:
+            for msg in messages:
+                logger.warning(f"Mammoth 转换警告: {msg}")
         
         return {
             "success": True,
             "data": {
-                "output_file": str(output_path),
-                "filename": output_filename,
-                "message": "PDF 转换完成，已生成 Word 文档"
+                "word_file": str(word_path),
+                "word_filename": word_filename,
+                "markdown_file": str(md_path),
+                "markdown_filename": md_filename,
+                "message": "PDF 转换完成，已生成 Word 和 Markdown 文档"
             }
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"PDF → Word 格式转换失败: {e}")
+        logger.error(f"PDF → Word/Markdown 格式转换失败: {e}")
         import traceback
         logger.error(f"详细堆栈: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))

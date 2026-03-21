@@ -55,9 +55,14 @@ const DocumentAnalyzer: React.FC = () => {
   const [sourceLang, setSourceLang] = useState('en')
   const [targetLang, setTargetLang] = useState('zh')
   
-  // PDF 转 Word 相关状态
+  // PDF 转 Word/Markdown 相关状态
   const [pdfToWordUploading, setPdfToWordUploading] = useState(false)
-  const [convertedWordFile, setConvertedWordFile] = useState<{ output_file: string; filename: string } | null>(null)
+  const [convertedFiles, setConvertedFiles] = useState<{
+    word_file: string
+    word_filename: string
+    markdown_file: string
+    markdown_filename: string
+  } | null>(null)
   
   // 报告生成相关状态
   const [generatingReport, setGeneratingReport] = useState(false)
@@ -712,7 +717,7 @@ const DocumentAnalyzer: React.FC = () => {
   }
 
   /**
-   * 处理 PDF 转 Word 上传（纯格式转换，不翻译）
+   * 处理 PDF 转 Word/Markdown 上传（纯格式转换，不翻译）
    */
   const handlePdfToWordUpload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
@@ -721,12 +726,12 @@ const DocumentAnalyzer: React.FC = () => {
     }
 
     setPdfToWordUploading(true)
-    setConvertedWordFile(null)
+    setConvertedFiles(null)
 
     try {
       const result = await convertAPI.pdfToWord(file)
-      setConvertedWordFile(result)
-      message.success('PDF 转换完成，已生成 Word 文档')
+      setConvertedFiles(result)
+      message.success('PDF 转换完成，已生成 Word 和 Markdown 文档')
     } catch (error: any) {
       message.error(error.unifiedMessage || 'PDF 转换失败')
     } finally {
@@ -740,15 +745,31 @@ const DocumentAnalyzer: React.FC = () => {
    * 下载转换后的 Word 文档
    */
   const handleDownloadWord = () => {
-    if (convertedWordFile) {
+    if (convertedFiles) {
       const link = document.createElement('a')
-      link.href = `http://localhost:8001/api/documents/files/download?path=${encodeURIComponent(convertedWordFile.output_file)}`
-      link.download = convertedWordFile.filename
+      link.href = `http://localhost:8001/api/documents/files/download?path=${encodeURIComponent(convertedFiles.word_file)}`
+      link.download = convertedFiles.word_filename
       link.target = '_blank'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       message.success('开始下载 Word 文档')
+    }
+  }
+
+  /**
+   * 下载转换后的 Markdown 文档
+   */
+  const handleDownloadMarkdown = () => {
+    if (convertedFiles) {
+      const link = document.createElement('a')
+      link.href = `http://localhost:8001/api/documents/files/download?path=${encodeURIComponent(convertedFiles.markdown_file)}`
+      link.download = convertedFiles.markdown_filename
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      message.success('开始下载 Markdown 文档')
     }
   }
 
@@ -794,19 +815,22 @@ const DocumentAnalyzer: React.FC = () => {
         </Space>
       </Card>
 
-      {/* PDF 转 Word 功能卡片 */}
+      {/* PDF 转 Word/Markdown 功能卡片 */}
       <Card 
         style={{ marginTop: 24 }}
         title={
           <Space>
             <FileWordOutlined />
-            <span>PDF → Word 格式转换</span>
+            <span>PDF → Word / Markdown 格式转换</span>
           </Space>
         }
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Text type="secondary">
-            上传 PDF 文件，自动转换为可编辑的 Word 文档，保留原文格式和排版（纯格式转换，不翻译）
+            上传 PDF 文件，自动转换为可编辑的 Word 文档和 Markdown 文档（纯格式转换，不翻译）
+          </Text>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            💡 Markdown 格式方便 LLM 模型阅读和处理
           </Text>
 
           <Upload.Dragger {...pdfToWordUploadProps} disabled={pdfToWordUploading}>
@@ -815,7 +839,7 @@ const DocumentAnalyzer: React.FC = () => {
             </p>
             <p className="ant-upload-text">点击或拖拽 PDF 文件到此区域</p>
             <p className="ant-upload-hint">
-              仅支持 PDF 格式文件，转换后可下载 Word 文档
+              仅支持 PDF 格式文件，转换后可下载 Word 和 Markdown 文档
             </p>
           </Upload.Dragger>
 
@@ -826,18 +850,28 @@ const DocumentAnalyzer: React.FC = () => {
             </div>
           )}
 
-          {convertedWordFile && !pdfToWordUploading && (
+          {convertedFiles && !pdfToWordUploading && (
             <Card size="small" style={{ backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text strong style={{ color: '#52c41a' }}>✅ 转换完成</Text>
-                <Text>文件名：{convertedWordFile.filename}</Text>
-                <Button
-                  type="primary"
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownloadWord}
-                >
-                  下载 Word 文档
-                </Button>
+                <Space wrap>
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={handleDownloadWord}
+                  >
+                    下载 Word 文档
+                  </Button>
+                  <Button
+                    icon={<DownloadOutlined />}
+                    onClick={handleDownloadMarkdown}
+                  >
+                    下载 Markdown 文档
+                  </Button>
+                </Space>
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  文件：{convertedFiles.word_filename} / {convertedFiles.markdown_filename}
+                </Text>
               </Space>
             </Card>
           )}

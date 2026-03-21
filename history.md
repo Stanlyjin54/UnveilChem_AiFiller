@@ -1,5 +1,11 @@
 # 版本历史
 
+## 1.0.19 (2026-03-21)
+- 新增 PDF → Word + Markdown 双格式转换功能
+- 使用 mammoth 库实现 Word → Markdown 转换
+- Markdown 格式方便 LLM 模型阅读和处理
+- 前端支持同时下载 Word 和 Markdown 两种格式
+
 ## 1.0.18 (2026-03-21)
 - 新增独立的 PDF → Word 格式转换 API（/documents/pdf-to-word）
 - 区分格式转换和翻译功能：格式转换不进行翻译，保留原文内容
